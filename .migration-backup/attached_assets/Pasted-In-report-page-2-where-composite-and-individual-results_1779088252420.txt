@@ -1,0 +1,114 @@
+In report page 2 (where composite and individual results are shown with the Skills, Will, and Environmental Support scores), make the following changes:
+
+
+
+PART 1 — Add Group Results column to the composite results table/section:
+The current display shows composite results and individual results columns. Add a third column: Group Results.
+Group Results for each dimension is calculated as:
+javascript// Skills Group Result
+groupSkills = sum of all candidates' skills scores in the group / total number of candidates in the group
+
+// Will Group Result
+groupWill = sum of all candidates' will scores in the group / total number of candidates in the group
+
+// Environmental Support Group Result
+groupEnvironmentalSupport = sum of all candidates' environmental support scores in the group / total number of candidates in the group
+So the composite results section now has 3 columns:
+
+Composite Results (existing)
+Individual Results (existing)
+Group Results (NEW) — only shown when viewing a group report, otherwise show "N/A"
+
+
+
+
+PART 2 — Backend: New group average endpoint:
+Add this route to admin routes:
+typescript// Get group averages for Skills, Will, Environmental Support
+router.get('/groups/:id/averages', requireAdmin, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+
+    const submissions = await Submission.find({ groupCode: group.groupCode });
+    const total = submissions.length;
+
+    if (total === 0) {
+      return res.json({
+        total: 0,
+        groupSkills: null,
+        groupWill: null,
+        groupEnvironmentalSupport: null,
+        candidates: [],
+      });
+    }
+
+    // Sum up each dimension across all candidates
+    let sumSkills = 0;
+    let sumWill = 0;
+    let sumEnv = 0;
+
+    const candidates = submissions.map(s => ({
+      name: s.name,
+      skills: s.skillsScore,       // use your actual field name
+      will: s.willScore,           // use your actual field name
+      environmentalSupport: s.environmentalSupportScore, // use your actual field name
+    }));
+
+    candidates.forEach(c => {
+      sumSkills += c.skills ?? 0;
+      sumWill += c.will ?? 0;
+      sumEnv += c.environmentalSupport ?? 0;
+    });
+
+    res.json({
+      total,
+      groupSkills: parseFloat((sumSkills / total).toFixed(1)),
+      groupWill: parseFloat((sumWill / total).toFixed(1)),
+      groupEnvironmentalSupport: parseFloat((sumEnv / total).toFixed(1)),
+      candidates,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to calculate group averages' });
+  }
+});
+
+
+
+PART 3 — Report Page 2: fetch group averages when groupId is present:
+At the top of report page 2, add:
+javascriptconst [groupAverages, setGroupAverages] = useState(null);
+
+useEffect(() => {
+  if (!groupId) return;
+  authFetch(`/api/admin/groups/${groupId}/averages`)
+    .then(r => r.json())
+    .then(d => setGroupAverages(d))
+    .catch(() => {});
+}, [groupId]);
+
+
+
+PART 4 — Report Page 2: update the composite results display:
+Update the composite results section to show 3 columns:
+DimensionCompositeIndividualGroupSkillscompositeSkillsindividualSkillsgroupAverages?.groupSkills ?? 'N/A'WillcompositeWillindividualWillgroupAverages?.groupWill ?? 'N/A'Env. SupportcompositeEnvindividualEnvgroupAverages?.groupEnvironmentalSupport ?? 'N/A'
+Style the Group column header and values in the same style as the existing columns. If groupAverages is null (individual report, no groupId), show "N/A" for all group values or hide the column entirely.
+
+
+
+PART 5 — Report Page 2: add individual breakdown table below:
+Below the composite results section, when groupId is present and groupAverages.candidates has data, add a new section titled "Group Candidates Breakdown":
+Show a table/list with each candidate's individual scores:
+NameSkillsWillEnv. SupportJohn Doe7.26.85.5Jane Smith8.17.46.2............Group Average7.67.15.8
+The last row is a bold "Group Average" row showing groupSkills, groupWill, groupEnvironmentalSupport.
+Style this table to match the existing report page design — dark header row with yellow text, alternating light/dark rows, same fonts and colors as the rest of the report.
+Only show this section when viewing a group report (when groupId param exists). Hide it entirely for individual reports.
+
+
+
+PART 6 — Pass groupId through to report page 2:
+Make sure when navigating to report page 2 from the group detail screen or group report button, the groupId param is passed through correctly. The existing individual report flow must remain unchanged.
+
+
+
+Do NOT change any existing scoring logic, question data, personal info screen, PDF generation, home screen, group code entry flow, or any other existing functionality. Only add the group results column and candidate breakdown table to report page 2.

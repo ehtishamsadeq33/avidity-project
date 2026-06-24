@@ -1,0 +1,217 @@
+Update the CRA app Group Detail system to support PRE vs POST candidate comparison reports.
+
+Current system:
+
+* Admin can view group submissions
+* PRE and POST submissions are stored separately
+
+New requirement:
+Inside the Group View page, add a new feature called:
+
+```txt id="u0g63d"
+Compare PRE vs POST Report
+```
+
+==================================================
+PART 1 — GROUP VIEW UI
+======================
+
+Inside each group detail page:
+
+Add a new button:
+
+```txt id="r9n7i9"
+📊 Compare PRE vs POST
+```
+
+When clicked:
+
+* Open comparison selection screen/modal
+
+==================================================
+PART 2 — SUBMISSION SELECTION
+=============================
+
+Admin must select:
+
+* ONE PRE submission
+* ONE POST submission
+
+UI example:
+
+```txt id="y72m5l"
+Select PRE Submission
+[ dropdown/list ]
+
+Select POST Submission
+[ dropdown/list ]
+```
+
+Each option should show:
+
+* candidate name
+* submission date
+* IC/employee ID if available
+
+Example:
+
+```txt id="0j4xwb"
+John Doe - PRE - 12 May 2026
+John Doe - POST - 22 May 2026
+```
+
+==================================================
+PART 3 — VALIDATION
+===================
+
+Rules:
+
+* PRE selection must come from PRE subgroup
+* POST selection must come from POST subgroup
+* Cannot select two PRE submissions
+* Cannot select two POST submissions
+
+==================================================
+PART 4 — GENERATE COMPARISON REPORT
+===================================
+
+After selecting both submissions:
+Generate a comparison report.
+
+Use the SAME structure and design as:
+
+* Report Page 1
+* Report Page 2
+* Report Page 3
+
+BUT:
+Show PRE and POST results side-by-side.
+
+==================================================
+PART 5 — SIDE-BY-SIDE LAYOUT
+============================
+
+Example layout:
+
+```txt id="z9z2mz"
+                PRE            POST
+
+Composite Score   52             81
+Leadership        44             77
+Communication     61             83
+Decision Making   49             79
+```
+
+Charts should also compare:
+
+* PRE result
+* POST result
+
+==================================================
+PART 6 — COMPOSITE TABLE
+========================
+
+Composite table format:
+
+```txt id="ezcjlwm"
+Category               PRE        POST
+
+Composite Score         52         81
+Self Awareness          48         76
+Leadership              44         72
+Communication           51         84
+```
+
+Add:
+
+* improvement difference
+
+Example:
+
+```txt id="tlpckf"
+Leadership:
+44 → 72
++28 improvement
+```
+
+==================================================
+PART 7 — REPORT PAGES
+=====================
+
+Page 1:
+
+* Demographics
+* PRE vs POST summary
+
+Page 2:
+
+* Side-by-side charts
+* Side-by-side composite scores
+
+Page 3:
+
+* Detailed comparison tables
+* Improvement indicators
+
+==================================================
+PART 8 — PDF EXPORT
+===================
+
+Add button:
+
+```txt id="j0bckc"
+Download Comparison PDF
+```
+
+PDF must:
+
+* preserve side-by-side layout
+* show PRE and POST clearly
+* include candidate names
+* include submission dates
+
+==================================================
+PART 9 — DATA FETCHING
+======================
+
+Create API route:
+
+```typescript id="d8c7x5"
+GET /api/admin/report/compare
+```
+
+Query params:
+
+```typescript id="jlwmn2"
+preSubmissionId
+postSubmissionId
+```
+
+Backend should:
+
+* fetch both submissions
+* calculate comparison values
+* return merged comparison data
+
+==================================================
+PART 10 — IMPORTANT RULES
+=========================
+
+* Do NOT redesign existing reports completely
+* Reuse current report components where possible
+* Keep existing charts and styles
+* Only convert layout into side-by-side comparison mode
+* Maintain responsive layout for web and mobile
+* Keep existing PDF styling consistent
+
+==================================================
+PART 11 — FUTURE SUPPORT
+========================
+
+Structure code so future comparison types can be added:
+
+* PRE vs MID
+* MID vs POST
+* PRE vs RETEST
+
+without major redesign.

@@ -1,0 +1,72 @@
+In ReportIntroScreen, replace the current 4 blob shapes section with a single circle divided into 4 quadrants using react-native-svg. Do exactly the following:
+Replace the entire 4 blob shapes section with this:
+javascriptimport Svg, { Path, Text as SvgText, Line } from 'react-native-svg';
+
+// Single circle divided into 4 quadrants
+const size = 280;
+const cx = size / 2;
+const cy = size / 2;
+const r = 120;
+
+<View style={{ alignItems: 'center', marginBottom: 24 }}>
+  <Svg width={size + 120} height={size + 80} viewBox={`-60 -40 ${size + 120} ${size + 80}`}>
+
+    {/* Top Left quadrant — Skill Composite — Green */}
+    <Path
+      d={`M ${cx} ${cy} L ${cx} ${cy - r} A ${r} ${r} 0 0 0 ${cx - r} ${cy} Z`}
+      fill="#2e7d32"
+    />
+    {/* Top Right quadrant — Will Composite — Orange */}
+    <Path
+      d={`M ${cx} ${cy} L ${cx + r} ${cy} A ${r} ${r} 0 0 0 ${cx} ${cy - r} Z`}
+      fill="#e65100"
+    />
+    {/* Bottom Left quadrant — Directive vs Non-Directive — Dark Blue */}
+    <Path
+      d={`M ${cx} ${cy} L ${cx - r} ${cy} A ${r} ${r} 0 0 0 ${cx} ${cy + r} Z`}
+      fill="#1a237e"
+    />
+    {/* Bottom Right quadrant — Environmental Support — Purple */}
+    <Path
+      d={`M ${cx} ${cy} L ${cx} ${cy + r} A ${r} ${r} 0 0 0 ${cx + r} ${cy} Z`}
+      fill="#6a1b9a"
+    />
+
+    {/* Dividing lines */}
+    <Line x1={cx} y1={cy - r - 5} x2={cx} y2={cy + r + 5} stroke="#fffde7" strokeWidth={3}/>
+    <Line x1={cx - r - 5} y1={cy} x2={cx + r + 5} y2={cy} stroke="#fffde7" strokeWidth={3}/>
+
+    {/* Labels inside quadrants */}
+    <SvgText x={cx - 35} y={cy - 35} fill="white" fontSize="11" fontWeight="bold" textAnchor="middle">Skill</SvgText>
+    <SvgText x={cx - 35} y={cy - 20} fill="white" fontSize="11" fontWeight="bold" textAnchor="middle">Composite</SvgText>
+
+    <SvgText x={cx + 40} y={cy - 35} fill="white" fontSize="11" fontWeight="bold" textAnchor="middle">Will</SvgText>
+    <SvgText x={cx + 40} y={cy - 20} fill="white" fontSize="11" fontWeight="bold" textAnchor="middle">Composite</SvgText>
+
+    <SvgText x={cx - 35} y={cy + 25} fill="white" fontSize="9" fontWeight="bold" textAnchor="middle">Directive vs.</SvgText>
+    <SvgText x={cx - 35} y={cy + 37} fill="white" fontSize="9" fontWeight="bold" textAnchor="middle">Non-Directive</SvgText>
+    <SvgText x={cx - 35} y={cy + 49} fill="white" fontSize="9" fontWeight="bold" textAnchor="middle">Scale</SvgText>
+
+    <SvgText x={cx + 40} y={cy + 25} fill="white" fontSize="9" fontWeight="bold" textAnchor="middle">Environmental</SvgText>
+    <SvgText x={cx + 40} y={cy + 37} fill="white" fontSize="9" fontWeight="bold" textAnchor="middle">Support</SvgText>
+    <SvgText x={cx + 40} y={cy + 49} fill="white" fontSize="9" fontWeight="bold" textAnchor="middle">Composite</SvgText>
+
+    {/* External labels — Left side (Skill Composite) */}
+    <SvgText x={cx - r - 10} y={cy - 50} fill="#1A1A1A" fontSize="11" textAnchor="end">Skill</SvgText>
+    <SvgText x={cx - r - 10} y={cy - 35} fill="#1A1A1A" fontSize="11" textAnchor="end">Behavior</SvgText>
+    <SvgText x={cx - r - 10} y={cy - 20} fill="#1A1A1A" fontSize="11" textAnchor="end">Knowledge</SvgText>
+
+    {/* External labels — Right side (Will Composite) */}
+    <SvgText x={cx + r + 10} y={cy - 55} fill="#1A1A1A" fontSize="11" textAnchor="start">Motivation</SvgText>
+    <SvgText x={cx + r + 10} y={cy - 40} fill="#1A1A1A" fontSize="11" textAnchor="start">Confidence</SvgText>
+    <SvgText x={cx + r + 10} y={cy - 25} fill="#1A1A1A" fontSize="11" textAnchor="start">Belief</SvgText>
+    <SvgText x={cx + r + 10} y={cy - 10} fill="#1A1A1A" fontSize="11" textAnchor="start">Commitment</SvgText>
+
+    {/* External labels — Right side (Environmental Support) */}
+    <SvgText x={cx + r + 10} y={cy + 20} fill="#1A1A1A" fontSize="11" textAnchor="start">People</SvgText>
+    <SvgText x={cx + r + 10} y={cy + 35} fill="#1A1A1A" fontSize="11" textAnchor="start">Leadership</SvgText>
+    <SvgText x={cx + r + 10} y={cy + 50} fill="#1A1A1A" fontSize="11" textAnchor="start">Organization</SvgText>
+
+  </Svg>
+</View>
+Do NOT change anything else — the highlight cards, quote block, description paragraphs, Continue button, navigation, MongoDB, PDF, all other screens stay exactly the same

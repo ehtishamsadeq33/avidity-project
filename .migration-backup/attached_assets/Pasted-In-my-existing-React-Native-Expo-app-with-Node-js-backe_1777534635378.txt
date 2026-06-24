@@ -1,0 +1,137 @@
+In my existing React Native / Expo app with Node.js backend, implement PDF generation using Puppeteer on the server. Do exactly the following:
+PART 1 — Backend setup:
+
+Install puppeteer on the backend:
+
+npm install puppeteer
+
+Create a new file artifacts/api-server/src/routes/pdf.ts
+Add a POST endpoint POST /api/report/pdf that:
+
+Accepts the full report data in the request body
+Generates a PDF using Puppeteer
+Returns the PDF as a base64 string
+
+
+
+typescriptimport puppeteer from 'puppeteer';
+
+router.post('/pdf', async (req, res) => {
+  try {
+    const { candidateInfo, perceivedActual, composites, scores } = req.body;
+
+    const html = generateReportHTML(candidateInfo, perceivedActual, composites, scores);
+
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: true
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.waitForTimeout(1000);
+
+    const pdf = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
+    });
+
+    await browser.close();
+
+    const base64 = Buffer.from(pdf).toString('base64');
+    res.json({ pdf: base64 });
+  } catch (error) {
+    res.status(500).json({ error: 'PDF generation failed' });
+  }
+});
+PART 2 — HTML generation function on backend:
+Create artifacts/api-server/src/lib/reportHTML.ts with a function generateReportHTML that builds the complete HTML for all 3 report pages including:
+
+Page 1: Candidate info, perceived/actual bars, composites table, CRA score spread pie chart using HTML canvas + JavaScript
+Page 2: Total CRA score, all composite bar charts, DND scale
+Page 3: What do your results mean with comparison sections
+
+For the pie chart use this canvas code inside the HTML:
+html<canvas id="pieChart" width="300" height="300"></canvas>
+<script>
+  const scores = SCORES_DATA;
+  const colors = ['#e8e83a','#c8d439','#8fbc3b','#4da63e','#2e8b44','#a0522d','#c65b22','#e07000','#d44000','#b22222'];
+  const canvas = document.getElementById('pieChart');
+  const ctx = canvas.getContext('2d');
+  const total = Object.values(scores).reduce((a,b) => a+b, 0);
+  let startAngle = -Math.PI / 2;
+  Object.entries(scores).forEach(([score, count], i) => {
+    if (count === 0) return;
+    const sliceAngle = (count / total) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(150, 150);
+    ctx.arc(150, 150, 130, startAngle, startAngle + sliceAngle);
+    ctx.closePath();
+    ctx.fillStyle = colors[i];
+    ctx.fill();
+    startAngle += sliceAngle;
+  });
+</script>
+PART 3 — Frontend PDF download:
+In ReportPage3, replace the current PDF generation code with:
+javascriptimport * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+
+const downloadPDF = async () => {
+  try {
+    setGeneratingPDF(true);
+
+    const response = await fetch(`${API_BASE_URL}/api/report/pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidateInfo,
+        perceivedActual,
+        composites,
+        scores
+      })
+    });
+
+    const { pdf } = await response.json();
+
+    // Save base64 PDF to device
+    const fileUri = FileSystem.documentDirectory + `CRA_Report_${candidateInfo.name}.pdf`;
+    await FileSystem.writeAsStringAsync(fileUri, pdf, {
+      encoding: FileSystem.EncodingType.Base64
+    });
+
+    // Share/download the PDF
+    await Sharing.shareAsync(fileUri, {
+      mimeType: 'application/pdf',
+      dialogTitle: 'Download CRA Report',
+      UTI: 'com.adobe.pdf'
+    });
+
+  } catch (error) {
+    Alert.alert('Error', 'Could not generate PDF. Please try again.');
+  } finally {
+    setGeneratingPDF(false);
+  }
+};
+
+Add a loading state generatingPDF — when true show "Generating PDF..." text on the button
+Install expo-file-system if not already installed
+
+PART 4 — Register the PDF route in the backend:
+
+Import and register the pdf router in the main index.ts:
+
+typescriptimport pdfRouter from './routes/pdf';
+app.use('/api/report', pdfRouter);
+PART 5 — Full HTML styling for the PDF:
+
+Use the same colors as the app throughout
+Page 1 background: #fffde7
+Yellow cards border: #f5c842
+All composite headers use their correct colors (green, orange, purple, dark blue)
+A4 page size with proper margins
+Each page separated with page-break-after: always
+All text in Arial or sans-serif font
+
+Do NOT change anything in the existing screens, calculations, MongoDB, navigation or survey

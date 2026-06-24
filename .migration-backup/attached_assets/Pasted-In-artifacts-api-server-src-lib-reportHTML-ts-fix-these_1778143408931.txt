@@ -1,0 +1,43 @@
+In artifacts/api-server/src/lib/reportHTML.ts, fix these 3 small issues only:
+Fix 1 — "Knowledge" label cut off on circle chart:
+
+In the compositeChart canvas JavaScript
+Change the left external label x position from cx - r - 8 to cx - r - 2
+Change text for "Knowledge" specifically: ctx.fillText('Knowledge', cx - r - 2, cy - 50)
+Increase canvas width from 500 to 560 to give more room for left labels
+Move cx from 200 to 230 to shift the circle right giving more space for left labels
+
+Fix 2 — "What They Think" bar showing 0% 50% 100% instead of 0% 100%:
+
+Find the pctTickRow function
+It is currently showing 3 tick marks — change it to only show 2:
+
+typescriptfunction pctTickRow(totalPx: number): string {
+  return `
+    <table width="${totalPx}" cellpadding="0" cellspacing="0" border="0"
+           style="border-collapse:collapse;margin-top:3px;">
+      <tr>
+        <td style="font-size:9px;color:#777;font-family:Arial,sans-serif;text-align:left;">0%</td>
+        <td style="font-size:9px;color:#777;font-family:Arial,sans-serif;text-align:right;">100%</td>
+      </tr>
+    </table>`;
+}
+Fix 3 — Sub-composite bars on Page 3 showing wrong x-axis and "Directive" word at top:
+
+Find the TICK_ROW constant
+It is currently showing percentage ticks — change it back to 0-10 number ticks:
+
+typescriptconst TICK_ROW = `
+  <table width="360" cellpadding="0" cellspacing="0" border="0"
+         style="border-collapse:collapse;margin-top:4px;margin-left:98px;">
+    <tr>
+      ${[0,1,2,3,4,5,6,7,8,9,10].map(t =>
+        `<td style="width:32px;font-size:9px;color:#777777;text-align:center;font-family:Arial,sans-serif;">${t}</td>`
+      ).join("")}
+    </tr>
+  </table>`;
+
+Find where "Directive" word is appearing at the top of Page 3 — it is likely a floating element from the DND pills — add clear:both to the Total CRA Score table:
+
+html<table width="100%" ... style="...;clear:both;">
+Do NOT change anything else — Page 4, calculations, MongoDB, navigation, all other screens stay exactly the same

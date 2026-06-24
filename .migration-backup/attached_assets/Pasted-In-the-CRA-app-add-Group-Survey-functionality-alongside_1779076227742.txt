@@ -1,0 +1,235 @@
+In the CRA app, add Group Survey functionality alongside the existing Individual Survey. Do exactly the following:
+PART 1 — Update Home Screen:
+
+Add a second button below the existing "Take Survey" button:
+
+javascript// Home screen buttons
+<TouchableOpacity onPress={() => router.push('/individual-survey')}>
+  <Text>Individual Survey</Text>
+</TouchableOpacity>
+
+<TouchableOpacity onPress={() => router.push('/group-entry')}>
+  <Text>Group Survey</Text>
+</TouchableOpacity>
+
+// Admin button stays at bottom right corner
+PART 2 — Update Individual Survey flow:
+
+Before the personal info screen, add an IC Number entry screen:
+
+javascript// IC Entry Screen
+<TextInput
+  placeholder="Enter your IC Number"
+  value={icNumber}
+  onChangeText={setIcNumber}
+/>
+<TouchableOpacity onPress={() => {
+  if (!icNumber.trim()) return;
+  router.push({ pathname: '/personal', params: { icNumber } });
+}}>
+  <Text>Continue</Text>
+</TouchableOpacity>
+
+Save icNumber with the MongoDB submission
+Update MongoDB schema to include icNumber field in each submission
+
+PART 3 — Admin: Create and Manage Groups:
+Add a new "Groups" tab to the admin dashboard between Candidates and Analytics:
+Tab shows:
+
+List of all groups with group name, created date, number of members
+"Create Group" floating button
+
+Create Group flow:
+
+Admin enters group name
+Admin enters IC numbers one by one (add button per IC) OR paste comma separated list
+Admin can remove IC numbers from the list
+Save button creates the group in MongoDB
+
+MongoDB Group schema:
+javascriptconst groupSchema = new mongoose.Schema({
+  groupName: { type: String, required: true },
+  cohort: { type: String },
+  organization: { type: String },
+  icNumbers: [{ type: String }],
+  createdAt: { type: Date, default: Date.now },
+  createdBy: { type: String, default: 'admin' },
+});
+Backend group routes in artifacts/api-server/src/routes/admin.ts:
+typescript// Create group
+router.post('/groups', requireAdmin, async (req, res) => {
+  const { groupName, cohort, organization, icNumbers } = req.body;
+  const group = new Group({ groupName, cohort, organization, icNumbers });
+  await group.save();
+  res.json({ group });
+});
+
+// Get all groups
+router.get('/groups', requireAdmin, async (req, res) => {
+  const groups = await Group.find().sort({ createdAt: -1 });
+  res.json({ groups });
+});
+
+// Get single group
+router.get('/groups/:id', requireAdmin, async (req, res) => {
+  const group = await Group.findById(req.params.id);
+  res.json({ group });
+});
+
+// Update group (add/remove IC numbers)
+router.put('/groups/:id', requireAdmin, async (req, res) => {
+  const group = await Group.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json({ group });
+});
+
+// Delete group
+router.delete('/groups/:id', requireAdmin, async (req, res) => {
+  await Group.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
+});
+
+// Get submissions for a group (match by IC numbers)
+router.get('/groups/:id/submissions', requireAdmin, async (req, res) => {
+  const group = await Group.findById(req.params.id);
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  const submissions = await Submission.find({
+    icNumber: { $in: group.icNumbers }
+  }).sort({ submittedAt: -1 });
+  res.json({ submissions, group });
+});
+PART 4 — Group Survey candidate flow:
+
+Candidate opens app → taps "Group Survey"
+Screen asks: "Enter your IC Number"
+After entering IC, app calls POST /api/survey/verify-ic to check if IC exists in any group:
+
+typescriptrouter.post('/survey/verify-ic', async (req, res) => {
+  const { icNumber } = req.body;
+  const group = await Group.findOne({ icNumbers: icNumber });
+  if (!group) {
+    return res.status(404).json({ error: 'IC number not found in any group. Please contact your administrator.' });
+  }
+  // Check if already submitted
+  const existing = await Submission.findOne({ icNumber, groupId: group._id });
+  if (existing) {
+    return res.status(400).json({ error: 'You have already submitted this survey.' });
+  }
+  res.json({ verified: true, groupId: group._id, groupName: group.groupName });
+});
+
+If IC verified: navigate to personal info screen with icNumber and groupId as params
+If IC not found: show error "IC number not found. Please contact your administrator."
+If already submitted: show error "You have already completed this survey."
+
+PART 5 — Update submission to save IC and group info:
+
+Update MongoDB submission schema to include:
+
+javascripticNumber: { type: String, index: true },
+groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null },
+submissionType: { type: String, enum: ['individual', 'group'], default: 'individual' },
+
+When submitting group survey, pass icNumber, groupId, submissionType: 'group' in the request body
+When submitting individual survey, pass submissionType: 'individual'
+
+PART 6 — Admin Group Report:
+
+When admin clicks a group in the Groups tab, show group detail screen with:
+
+Group name, cohort, organization
+List of IC numbers and their submission status (submitted ✅ / pending ⏳)
+Total submitted vs total members
+"View Group Report" button — navigates to existing report pages passing group IC numbers as filter
+
+
+Group report uses same CRA report pages (intro, page1, page2, page3) but aggregates data across all group members
+
+PART 7 — Update Candidates tab in admin:
+
+Add a filter toggle: "Individual" | "Group" | "All"
+When "Group" selected, show group name column instead of nothing
+Each candidate row shows: Name | IC Number | Group | Skills% | Will% | Total CRA | Date
+
+PART 8 — IC Number entry screen (app/ic-entry.tsx):
+javascriptexport default function ICEntryScreen() {
+  const [icNumber, setIcNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const isGroup = params.type === 'group';
+
+  const handleContinue = async () => {
+    if (!icNumber.trim()) {
+      setError('Please enter your IC number');
+      return;
+    }
+    if (isGroup) {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/survey/verify-ic`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ icNumber: icNumber.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? 'Verification failed');
+          return;
+        }
+        router.push({
+          pathname: '/personal',
+          params: { icNumber: icNumber.trim(), groupId: data.groupId, type: 'group' }
+        });
+      } catch (e) {
+        setError('Network error. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      router.push({
+        pathname: '/personal',
+        params: { icNumber: icNumber.trim(), type: 'individual' }
+      });
+    }
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#fffde7', padding: 24, justifyContent: 'center' }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 8, color: '#1A1A1A' }}>
+        {isGroup ? 'Group Survey' : 'Individual Survey'}
+      </Text>
+      <Text style={{ fontSize: 14, color: '#555', marginBottom: 24 }}>
+        Please enter your IC number to continue
+      </Text>
+      <TextInput
+        style={{
+          borderWidth: 1, borderColor: '#ccc', borderRadius: 10,
+          padding: 14, fontSize: 16, backgroundColor: '#fff', marginBottom: 12
+        }}
+        placeholder="IC Number (e.g. 901234-56-7890)"
+        value={icNumber}
+        onChangeText={setIcNumber}
+        autoCapitalize="none"
+      />
+      {error ? <Text style={{ color: 'red', marginBottom: 12 }}>{error}</Text> : null}
+      <TouchableOpacity
+        onPress={handleContinue}
+        disabled={loading}
+        style={{
+          backgroundColor: '#f5c842', borderRadius: 10, padding: 14, alignItems: 'center'
+        }}
+      >
+        <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#000' }}>
+          {loading ? 'Verifying...' : 'Continue →'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+Register all new screens:
+javascript<Stack.Screen name="ic-entry" options={{ headerShown: false }} />
+<Stack.Screen name="admin/groups" options={{ headerShown: false }} />
+<Stack.Screen name="admin/group-detail" options={{ headerShown: false }} />
+Do NOT change any existing survey questions, report pages, PDF generation, PEAC app, MongoDB connection string or any other existing functionality

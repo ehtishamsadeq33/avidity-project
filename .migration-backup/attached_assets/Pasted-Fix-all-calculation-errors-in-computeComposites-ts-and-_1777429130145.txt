@@ -1,0 +1,104 @@
+Fix all calculation errors in computeComposites.ts and ReportPage2.js. Do exactly the following:
+Fix 1 — Replace entire computeComposites.ts functions:
+typescriptexport function computePerceivedActual(
+  answers: Record<string, number>,
+): PerceivedActual {
+  const whatTheyThinkTotal = sumByLabels(answers, PERCEIVED_LABELS);
+  const whereTheyAreTotal = sumByLabels(answers, ACTUAL_LABELS);
+  return {
+    whatTheyThinkTotal,
+    whatTheyThinkPercent: round2((whatTheyThinkTotal / 37) * 10),
+    whereTheyAreTotal,
+    whereTheyArePercent: round2((whereTheyAreTotal / 9) * 10),
+  };
+}
+
+export function computeComposites(answers: Record<string, number>): Composites {
+  const behavior = round2(sumByLabels(answers, BEHAVIOR_LABELS) / 16);
+  const knowledge = round2(sumByLabels(answers, KNOWLEDGE_LABELS) / 8);
+  const skill = round2(sumByLabels(answers, SKILL_LABELS) / 13);
+  const skillsPercent = round2(((behavior + knowledge + skill) / 30) * 100);
+
+  const belief = round2(sumByLabels(answers, BELIEF_LABELS) / 15);
+  const confidence = round2(sumByLabels(answers, CONFIDENCE_LABELS) / 9);
+  const commitment = round2(sumByLabels(answers, COMMITMENT_LABELS) / 9);
+  const motivation = round2(sumByLabels(answers, MOTIVATION_LABELS) / 9);
+  const willPercent = round2(((belief + confidence + commitment + motivation) / 40) * 100);
+
+  const leadership = round2(sumByLabels(answers, LEADERSHIP_LABELS) / 12);
+  const organization = round2(sumByLabels(answers, ORGANIZATION_LABELS) / 20);
+  const people = round2(sumByLabels(answers, PEOPLE_LABELS) / 11);
+  const envPercent = round2(((leadership + organization + people) / 30) * 100);
+
+  const dndTotal = sumByLabels(answers, DIRECTIVE_NON_DIRECTIVE_LABELS);
+  const dndPercent = round2((dndTotal / 11) * 10);
+
+  return {
+    skills: {
+      behavior,
+      knowledge,
+      skill,
+      total: behavior + knowledge + skill,
+      percent: skillsPercent,
+    },
+    will: {
+      belief,
+      confidence,
+      commitment,
+      motivation,
+      total: belief + confidence + commitment + motivation,
+      percent: willPercent,
+    },
+    environmentalSupport: {
+      leadership,
+      organization,
+      people,
+      total: leadership + organization + people,
+      percent: envPercent,
+    },
+    directiveNonDirective: {
+      total: dndTotal,
+      percent: dndPercent,
+    },
+  };
+}
+Fix 2 — ReportPage2.js: Delete avg function and constants:
+
+Delete the entire avg function
+Delete SKILL_COUNTS, WILL_COUNTS, ENV_COUNTS constants entirely
+
+Fix 3 — ReportPage2.js: Add round2 function at top:
+javascriptfunction round2(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+Fix 4 — ReportPage2.js: Fix bar rows to use values directly:
+javascriptconst skillsRows: BarRow[] = [
+  { label: "Skill", value: Number(skills.skill ?? 0), color: "#1b5e20" },
+  { label: "Knowledge", value: Number(skills.knowledge ?? 0), color: "#a5d6a7" },
+  { label: "Behavior", value: Number(skills.behavior ?? 0), color: "#4caf50" },
+];
+const willRows: BarRow[] = [
+  { label: "Motivation", value: Number(will.motivation ?? 0), color: "#fff9c4" },
+  { label: "Confidence", value: Number(will.confidence ?? 0), color: "#ffe0b2" },
+  { label: "Commitment", value: Number(will.commitment ?? 0), color: "#f9a825" },
+  { label: "Believe", value: Number(will.belief ?? 0), color: "#f57f17" },
+];
+const envRows: BarRow[] = [
+  { label: "People", value: Number(env.people ?? 0), color: "#4a148c" },
+  { label: "Organization", value: Number(env.organization ?? 0), color: "#9c27b0" },
+  { label: "Leadership", value: Number(env.leadership ?? 0), color: "#ce93d8" },
+];
+Fix 5 — ReportPage2.js: Fix Total CRA Score formula:
+javascriptconst totalCRAScore = round2(
+  ((skillsPct * 1.3) + (willPct * 1.45) + (envPct * 1.25)) / 4
+);
+Fix 6 — ReportPage2.js: Fix bar value label display:
+
+In ScaleBarChart change {(r.value * 10).toFixed(2)} to {r.value.toFixed(2)}
+
+Fix 7 — ReportPage2.js: Fix DND percentage label:
+
+In PercentBarChart change {(v * 10).toFixed(2)%} to {v.toFixed(1)}%
+
+Do NOT change anything else — colors, legends, headers, navigation, MongoDB, survey questions, all other screens stay exactly the same

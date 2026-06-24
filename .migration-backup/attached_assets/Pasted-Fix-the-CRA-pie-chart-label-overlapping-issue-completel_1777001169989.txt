@@ -1,0 +1,40 @@
+Fix the CRA pie chart label overlapping issue completely. The current chart has labels bunching together and going off screen. Replace the entire pie chart component with this improved version:
+Chart setup:
+
+SVG canvas size: 380x380
+Pie chart center: x=190, y=190
+Pie radius: 110px
+Label anchor radius (where leader line ends): 155px from center
+Total canvas including label space: 380px wide, keep labels strictly inside this boundary
+
+Label placement algorithm — follow this exactly:
+Step 1 — Split labels into LEFT side and RIGHT side based on slice midpoint angle:
+
+If midpoint angle is between 270° and 90° (right half) → label goes on RIGHT
+If midpoint angle is between 90° and 270° (left half) → label goes on LEFT
+
+Step 2 — Sort each side's labels by their Y position (top to bottom)
+Step 3 — Apply minimum spacing of 28px between consecutive labels on the same side. If two labels are closer than 28px, push the lower one down
+Step 4 — After spacing, check if any label Y is above 20px or below 360px and clamp it
+Leader lines:
+
+Draw a line from the slice edge (at radius 110px, midpoint angle) to a bend point (at radius 130px), then a short horizontal line to the label
+Right side labels: horizontal line goes right, label text-anchor="start"
+Left side labels: horizontal line goes left, label text-anchor="end"
+Line color: #888888, stroke width 0.8px
+
+Label text:
+
+Line 1: "Score X" bold, font size 11px, color #333
+Line 2: "XX.XX%" regular, font size 10px, color #555
+Only show outside labels for slices smaller than 8%
+For slices 8% and above, show label inside the slice (score number + % centered at 65% of radius along midpoint angle)
+
+Inside labels:
+
+Font size 12px bold, white color
+Position at 65% of radius from center along the slice midpoint angle
+Only show if the slice is wide enough (greater than 8%)
+
+Skip rendering entirely any slice where count is 0
+Do not change anything else — MongoDB, submit button, report card, description box stay the same. Only fix this chart component

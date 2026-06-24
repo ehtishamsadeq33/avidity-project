@@ -1,0 +1,247 @@
+Here's your complete Replit prompt:
+
+---
+
+**Replit AI Prompt:**
+
+> In my existing React Native / Expo app, implement the following changes completely. Do exactly this:
+>
+> **PHASE 1 — Block candidate from seeing report after submit:**
+>
+> - After the survey submit button is pressed and submission is successful, do NOT navigate to the report screen
+> - Instead navigate to a new `SubmissionConfirmScreen` with this content:
+> ```javascript
+> // Clean confirmation screen
+> <View style={{ flex:1, backgroundColor:'#fffde7', alignItems:'center', justifyContent:'center', padding:24 }}>
+>   <View style={{ width:80, height:80, borderRadius:40, backgroundColor:'#f5c842', alignItems:'center', justifyContent:'center', marginBottom:24 }}>
+>     <Text style={{ fontSize:40 }}>✓</Text>
+>   </View>
+>   <Text style={{ fontSize:22, fontWeight:'bold', color:'#1A1A1A', textAlign:'center', marginBottom:12 }}>
+>     Thank You!
+>   </Text>
+>   <Text style={{ fontSize:15, color:'#555', textAlign:'center', lineHeight:22, marginBottom:32 }}>
+>     Your Coach Readiness Assessment has been successfully submitted. Your results will be reviewed by the administrator.
+>   </Text>
+>   <TouchableOpacity
+>     onPress={() => router.replace('/')}
+>     style={{ backgroundColor:'#f5c842', borderRadius:10, padding:14, width:'100%', alignItems:'center' }}>
+>     <Text style={{ fontWeight:'bold', fontSize:16, color:'#000' }}>Back to Home</Text>
+>   </TouchableOpacity>
+> </View>
+> ```
+> - Register `SubmissionConfirmScreen` in the navigator
+> - Remove the report navigation from the submit flow completely
+>
+> **PHASE 2 — Add Admin button to home screen:**
+>
+> - On the existing home screen add a small "Admin" button at the bottom
+> - Style it as a subtle dark button so it doesn't distract candidates:
+> ```javascript
+> <TouchableOpacity
+>   onPress={() => router.push('/admin-login')}
+>   style={{ position:'absolute', bottom:20, right:20, backgroundColor:'#2c2c2c', borderRadius:8, paddingVertical:8, paddingHorizontal:16 }}>
+>   <Text style={{ color:'#f5c842', fontWeight:'bold', fontSize:13 }}>Admin</Text>
+> </TouchableOpacity>
+> ```
+>
+> **PHASE 3 — Admin login screen (`app/admin-login.tsx`):**
+>
+> - Simple login form with username and password fields
+> - On submit, call `POST /api/admin/login` with credentials
+> - If successful, store auth token in `SecureStore` from `expo-secure-store`
+> - Navigate to Admin Dashboard
+> - If failed, show error "Invalid credentials"
+> - Add a back button to return to home
+> - Style with dark header `#2c2c2c` and yellow accents `#f5c842`
+>
+> **PHASE 4 — Backend admin auth (`artifacts/api-server/src/routes/admin.ts`):**
+>
+> - Install `bcrypt` and `jsonwebtoken`
+> - Create admin credentials in `.env`:
+> ```
+> ADMIN_USERNAME=admin
+> ADMIN_PASSWORD=admin123
+> JWT_SECRET=your_secret_key_here
+> ```
+> - `POST /api/admin/login` — verify credentials, return JWT token
+> - Create middleware `requireAdmin` that verifies JWT token on all admin routes
+> - `POST /api/admin/change-password` — change admin password (requires auth)
+> - `GET /api/admin/users` — get all admin users
+> - `POST /api/admin/users` — add new admin user
+> - `DELETE /api/admin/users/:id` — remove admin user
+> - Store admin users in MongoDB collection `admins`
+>
+> **PHASE 5 — Admin Dashboard screen (`app/admin-dashboard.tsx`):**
+>
+> - Full screen with tab navigation at the bottom with 4 tabs:
+>   - Tab 1: Overview (chart icon)
+>   - Tab 2: Candidates (people icon)
+>   - Tab 3: Analytics (graph icon)
+>   - Tab 4: Settings (gear icon)
+> - Each tab renders a different component
+> - Header shows "Admin Dashboard" with logout button top right
+> - On logout: clear SecureStore token, navigate to home
+> - All API calls include JWT token in Authorization header
+>
+> **PHASE 6 — Tab 1: Overview panel:**
+>
+> Backend endpoint `GET /api/admin/overview`:
+> - Returns:
+> ```json
+> {
+>   "totalSubmissions": 47,
+>   "thisWeek": 5,
+>   "thisMonth": 12,
+>   "averages": {
+>     "skills": 68.5,
+>     "will": 72.3,
+>     "environmentalSupport": 65.1,
+>     "directiveNonDirective": 60.2
+>   },
+>   "genderCharts": {
+>     "skills": { "male": 70.2, "female": 66.8 },
+>     "will": { "male": 74.1, "female": 70.5 },
+>     "environmentalSupport": { "male": 66.3, "female": 64.0 },
+>     "directiveNonDirective": { "male": 62.1, "female": 58.4 }
+>   }
+> }
+> ```
+> - Calculate averages exactly as:
+>   - `avgSkills = sum of all candidates' skills.percent / total candidates`
+>   - `avgWill = sum of all candidates' will.percent / total candidates`
+>   - `avgEnv = sum of all candidates' environmentalSupport.percent / total candidates`
+>   - `avgDND = sum of all candidates' directiveNonDirective.percent / total candidates`
+>   - `thisWeek` = count of submissions where submittedAt >= 7 days ago
+>   - `thisMonth` = count of submissions where submittedAt >= 30 days ago
+>   - For gender charts: filter by gender, then calculate same averages for male and female separately
+>
+> Frontend Overview tab:
+> - Summary cards row:
+> ```
+> ┌──────────────┬──────────────┬──────────────┐
+> │    Total     │  This Week   │ This Month   │
+> │     47       │      5       │     12       │
+> └──────────────┴──────────────┴──────────────┘
+> ```
+> - Average scores section with 4 cards:
+> ```
+> ┌──────────┬──────────┬──────────┬──────────┐
+> │  Skills  │   Will   │   Env    │   DND    │
+> │  68.5%   │  72.3%   │  65.1%   │  60.2%  │
+> └──────────┴──────────┴──────────┴──────────┘
+> ```
+> - Distribution charts section — 4 horizontal bar charts using react-native-svg:
+>   - Chart 1: Skills — Male vs Female
+>   - Chart 2: Will — Male vs Female
+>   - Chart 3: Environmental Support — Male vs Female
+>   - Chart 4: Directive/Non-Directive — Male vs Female
+>   - Each chart: Y axis shows "Male" and "Female", X axis shows 0% to 100%
+>   - Male bar color: blue `#1565c0`, Female bar color: purple `#6a1b9a`
+>   - Show percentage value at end of each bar
+>   - Chart title above each chart in bold
+>
+> **PHASE 7 — Tab 2: Candidates panel:**
+>
+> Backend endpoint `GET /api/admin/candidates`:
+> - Accepts query params: `search`, `gender`, `age`, `yearsInOrganization`, `yearsInPosition`, `sortBy`, `sortOrder`
+> - Returns paginated list of candidates with their scores
+> - Each candidate:
+> ```json
+> {
+>   "_id": "...",
+>   "name": "John",
+>   "gender": "Male",
+>   "age": "26-30",
+>   "yearsInOrganization": "1-2 years",
+>   "yearsInPosition": "3-5 years",
+>   "skillsPercent": 72.3,
+>   "willPercent": 68.5,
+>   "envPercent": 65.1,
+>   "dndPercent": 60.2,
+>   "totalCRAScore": 68.8,
+>   "submittedAt": "2026-01-05T10:00:00Z"
+> }
+> ```
+>
+> Frontend Candidates tab:
+> - Search bar at top: search by name
+> - Filter row below search with dropdown filters:
+>   - Gender: All, Male, Female
+>   - Age: All, 20-25, 26-30, 31-35, 36-40, 41-45, 46-50, 51-55, 56-60, 60+
+>   - Years in Organization: All, Less than 1 year, 1-2 years, 3-5 years, 6-10 years, 11-15 years, 16-20 years, 21 Years And More
+>   - Years in Position: All, Less than 1 year, 1-2 years, 3-5 years, 6-10 years, 11-15 years, 16-20 years, 21 Years And More
+> - Candidates list below filters:
+>   - Each row shows: Name | Skills% | Will% | Env% | Total CRA | Date
+>   - Tap row → navigate to full report (all 3 pages)
+>   - Long press or swipe → show "Download PDF" option
+>   - Pull to refresh
+> - Empty state: "No candidates found" when filters return nothing
+>
+> **PHASE 8 — Tab 3: Analytics panel:**
+>
+> Backend endpoint `GET /api/admin/analytics`:
+> - Returns all candidates with their composite scores for charting
+> - Returns submissions grouped by date for time series
+>
+> Frontend Analytics tab using react-native-svg:
+>
+> **Chart 1 — Skills vs Will scatter plot:**
+> - X axis: Skills % (0-100)
+> - Y axis: Will % (0-100)
+> - Each dot = one candidate
+> - Dot color: green `#2e7d32`
+> - Dot size: 8px
+> - Reference lines at 70% on both axes (dashed yellow)
+> - Title: "Skills vs Will"
+>
+> **Chart 2 — Will vs Environmental Support scatter plot:**
+> - X axis: Will % (0-100)
+> - Y axis: Environmental Support % (0-100)
+> - Each dot = one candidate
+> - Dot color: orange `#e65100`
+> - Same reference lines at 70%
+> - Title: "Will vs Environmental Support"
+>
+> **Chart 3 — Submissions over time line chart:**
+> - X axis: dates (last 30 days)
+> - Y axis: number of submissions
+> - Line color: yellow `#f5c842`
+> - Filled area below line: light yellow
+> - Title: "Submissions Over Time"
+> - Show dots at each data point
+>
+> **PHASE 9 — Tab 4: Settings panel:**
+>
+> **Change Password section:**
+> - Current password field
+> - New password field
+> - Confirm new password field
+> - Save button — calls `POST /api/admin/change-password`
+> - Show success/error message
+>
+> **Admin Users section:**
+> - List of all admin users with their username and created date
+> - Add new admin button → modal with username and password fields → calls `POST /api/admin/users`
+> - Delete button per user (cannot delete last admin) → calls `DELETE /api/admin/users/:id`
+>
+> **PHASE 10 — Admin viewing candidate report:**
+>
+> - When admin taps a candidate in the Candidates tab, navigate to the existing ReportIntroScreen passing all the candidate's saved data
+> - The report should show exactly the same 4 pages (intro, page1, page2, page3) as before
+> - Add a "Download PDF" button that calls the existing PDF endpoint
+> - Add a "← Back to Dashboard" button instead of the normal back button
+>
+> **PHASE 11 — Register all new routes in backend:**
+> ```typescript
+> import adminRouter from './routes/admin';
+> app.use('/api/admin', adminRouter);
+> ```
+>
+> **PHASE 12 — Register all new screens in navigator:**
+> ```javascript
+> <Stack.Screen name="submission-confirm" component={SubmissionConfirmScreen} />
+> <Stack.Screen name="admin-login" component={AdminLoginScreen} />
+> <Stack.Screen name="admin-dashboard" component={AdminDashboardScreen} />
+> ```
+>
+> **Do NOT change** any existing survey screens, report pages, PDF generation, calculations, or MongoDB survey submission logic — only add new screens and endpoints on top of existing code

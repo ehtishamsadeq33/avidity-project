@@ -1,0 +1,307 @@
+Fix the PDF generation in generatePDFHTML completely. The bars are 
+still not rendering visually and the page breaks are wrong.
+DO NOT change screen display, calculations, MongoDB or navigation.
+
+═══════════════════════════════════════════════════════
+🔹 ROOT CAUSE: expo-print RENDERING LIMITATIONS
+═══════════════════════════════════════════════════════
+
+expo-print uses React Native's WebKit renderer which has these 
+strict limitations:
+
+1. Percentage widths on <td> inside a bar table do NOT render 
+   reliably — use PIXEL widths calculated from a fixed total width
+2. bgcolor="" attribute is ignored — use style="background-color:" 
+   directly on the td
+3. border-radius on td does NOT work — wrap td content in a <div> 
+   with border-radius instead
+4. flexbox is completely broken — use tables only
+5. CSS background-color on table rows is unreliable — apply it 
+   directly on each <td>
+
+═══════════════════════════════════════════════════════
+🔹 FIXED BAR FUNCTION — USE PIXEL WIDTHS NOT PERCENT
+═══════════════════════════════════════════════════════
+
+Replace the bar() and subBar() helper functions with these exact 
+implementations. Use a fixed total width of 500px for full bars 
+and 380px for sub-bars inside composite sections:
+
+const FULL_BAR_WIDTH = 500;
+const SUB_BAR_WIDTH = 380;
+
+const bar = (percent, color, label, totalWidth = FULL_BAR_WIDTH) => {
+  const clampedPct = Math.min(Math.max(Math.round(percent), 1), 99);
+  const fillPx = Math.round((clampedPct / 100) * totalWidth);
+  const emptyPx = totalWidth - fillPx;
+  return `
+    <table width="${totalWidth}" cellpadding="0" cellspacing="0" 
+           style="border-radius:8px;overflow:hidden;margin:6px 0;">
+      <tr>
+        <td width="${fillPx}" style="width:${fillPx}px;background-color:${color};height:28px;vertical-align:middle;padding-left:8px;">
+          <span style="color:white;font-weight:bold;font-size:12px;">${label}</span>
+        </td>
+        <td width="${emptyPx}" style="width:${emptyPx}px;background-color:#e0e0e0;height:28px;"></td>
+      </tr>
+    </table>`;
+};
+
+const subBar = (value, color, label, totalWidth = SUB_BAR_WIDTH) => {
+  const pct = Math.round((Math.min(Math.max(value, 0), 10) / 10) * 100);
+  const fillPx = Math.round((pct / 100) * totalWidth);
+  const emptyPx = totalWidth - fillPx;
+  const textColor = pct > 40 ? 'white' : '#333';
+  return `
+    <tr>
+      <td style="width:100px;font-size:11px;font-weight:bold;
+                 padding:4px 8px 4px 0;vertical-align:middle;
+                 color:#333;">${label}</td>
+      <td style="vertical-align:middle;padding:4px 0;">
+        <table width="${totalWidth}" cellpadding="0" cellspacing="0" 
+               style="border-radius:6px;overflow:hidden;">
+          <tr>
+            <td width="${fillPx}" style="width:${fillPx}px;
+                background-color:${color};height:22px;
+                vertical-align:middle;padding-left:6px;">
+              <span style="font-size:11px;font-weight:bold;
+                           color:${textColor};">${value.toFixed(2)}</span>
+            </td>
+            <td width="${emptyPx}" style="width:${emptyPx}px;
+                background-color:#f0f0f0;height:22px;"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+};
+
+═══════════════════════════════════════════════════════
+🔹 FIXED PAGE BREAK STRUCTURE
+═══════════════════════════════════════════════════════
+
+The Directive vs Non-Directive bar must be on Page 2, NOT Page 3.
+Page 3 must only be the "What do your results mean?" section.
+
+Fix the div structure so page breaks are ONLY after Page 1 and Page 2:
+
+<!-- Page 1 content -->
+<div style="page-break-after:always;">
+  ... candidate info, perceived vs actual, composites summary, 
+      score spread ...
+</div>
+
+<!-- Page 2 content -->
+<div style="page-break-after:always;">
+  ... Total CRA Score, Skills Composite with sub-bars, 
+      Will Composite with sub-bars, 
+      Environmental Support with sub-bars,
+      Directive vs Non-Directive bar ...
+</div>
+
+<!-- Page 3 content — NO page-break-after -->
+<div>
+  ... What do your results mean? ...
+</div>
+
+Do NOT put page-break-after on Page 3 div.
+Do NOT add any extra empty divs between pages.
+
+═══════════════════════════════════════════════════════
+🔹 FIXED PAGE 3 COMPARISON PILL LAYOUT
+═══════════════════════════════════════════════════════
+
+The comparison pills on Page 3 are broken because flexbox 
+doesn't work. Replace with a fixed 3-column table layout.
+
+Use a fixed total width of 520px for the comparison row.
+Left pill = 220px, symbol cell = 50px, right pill = 220px.
+
+Replace the comparison row HTML with this exact pattern:
+
+${reportPage3Data.map(section => `
+  <div style="margin-bottom:24px;">
+
+    <table width="520" cellpadding="0" cellspacing="0" 
+           style="margin-bottom:12px;">
+      <tr>
+        <!-- Left pill -->
+        <td width="220" style="vertical-align:middle;">
+          <table width="220" cellpadding="0" cellspacing="0" 
+                 style="border-radius:25px;overflow:hidden;
+                        background-color:${section.leftColor};">
+            <tr>
+              <td style="padding:10px 14px;background-color:${section.leftColor};">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="color:white;font-weight:bold;
+                               font-size:11px;">${section.leftLabel}</td>
+                    <td style="color:white;font-weight:bold;
+                               font-size:11px;text-align:right;">
+                      ${section.leftPct}%
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+
+        <!-- Symbol -->
+        <td width="50" style="text-align:center;vertical-align:middle;">
+          <div style="width:36px;height:36px;background-color:#f5c842;
+                      border-radius:18px;margin:0 auto;
+                      text-align:center;line-height:36px;
+                      font-weight:bold;font-size:16px;">
+            ${section.symbol}
+          </div>
+        </td>
+
+        <!-- Right pill -->
+        <td width="220" style="vertical-align:middle;">
+          <table width="220" cellpadding="0" cellspacing="0"
+                 style="border-radius:25px;overflow:hidden;
+                        background-color:${section.rightColor};">
+            <tr>
+              <td style="padding:10px 14px;
+                         background-color:${section.rightColor};">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="color:white;font-weight:bold;
+                               font-size:11px;">${section.rightLabel}</td>
+                    <td style="color:white;font-weight:bold;
+                               font-size:11px;text-align:right;">
+                      ${section.rightPct}%
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Statement card -->
+    <div style="background-color:white;border-radius:12px;
+                padding:16px;margin-bottom:8px;
+                border:1px solid #ddd;">
+      <p style="font-weight:bold;text-decoration:underline;
+                text-align:center;margin-bottom:8px;
+                font-size:14px;">${section.title}</p>
+      <p style="font-size:12px;text-align:center;
+                color:#333;line-height:1.6;">
+        ${section.statement}
+      </p>
+    </div>
+
+  </div>
+`).join('')}
+
+═══════════════════════════════════════════════════════
+🔹 FIXED COMPOSITES SUMMARY TABLE ON PAGE 1
+═══════════════════════════════════════════════════════
+
+The composites summary (Skills / Will / Environmental Support pills 
+with percentages) on Page 1 must use fixed pixel widths too.
+
+Replace with this fixed-width table using 220px pill width each side:
+
+<table width="500" cellpadding="6" cellspacing="0" 
+       style="margin-top:8px;">
+  <tr>
+    <td width="220">
+      <div style="background-color:#4caf50;border-radius:25px;
+                  padding:10px 16px;text-align:center;
+                  color:white;font-weight:bold;font-size:13px;">
+        Skills
+      </div>
+    </td>
+    <td width="60"></td>
+    <td width="220">
+      <div style="background-color:#4caf50;border-radius:25px;
+                  padding:10px 16px;text-align:center;
+                  color:white;font-weight:bold;font-size:13px;">
+        ${composites.skills.percent}%
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td width="220">
+      <div style="background-color:#ff9800;border-radius:25px;
+                  padding:10px 16px;text-align:center;
+                  color:white;font-weight:bold;font-size:13px;">
+        Will
+      </div>
+    </td>
+    <td width="60"></td>
+    <td width="220">
+      <div style="background-color:#ff9800;border-radius:25px;
+                  padding:10px 16px;text-align:center;
+                  color:white;font-weight:bold;font-size:13px;">
+        ${composites.will.percent}%
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td width="220">
+      <div style="background-color:#9c27b0;border-radius:25px;
+                  padding:10px 16px;text-align:center;
+                  color:white;font-weight:bold;font-size:13px;">
+        Environmental Support
+      </div>
+    </td>
+    <td width="60"></td>
+    <td width="220">
+      <div style="background-color:#9c27b0;border-radius:25px;
+                  padding:10px 16px;text-align:center;
+                  color:white;font-weight:bold;font-size:13px;">
+        ${composites.environmentalSupport.percent}%
+      </div>
+    </td>
+  </tr>
+</table>
+
+═══════════════════════════════════════════════════════
+🔹 SCORE SPREAD TABLE — USE EXPLICIT TD BACKGROUND
+═══════════════════════════════════════════════════════
+
+The score spread table row colors may not render. Fix by applying 
+background-color directly on EACH <td> individually, not on <tr>:
+
+${Object.entries(scores)
+  .filter(([,v]) => v > 0)
+  .map(([score, count]) => {
+    const pct = totalResponses > 0 
+      ? ((count / totalResponses) * 100).toFixed(2) 
+      : '0.00';
+    const idx = parseInt(score) - 1;
+    const bg = scoreColors[idx] || '#ccc';
+    const textColor = idx < 2 ? '#000000' : '#ffffff';
+    return `<tr>
+      <td style="background-color:${bg};color:${textColor};
+                 padding:6px 10px;font-weight:bold;">
+        Score ${score}
+      </td>
+      <td style="background-color:${bg};color:${textColor};
+                 padding:6px 10px;">
+        ${count} responses
+      </td>
+      <td style="background-color:${bg};color:${textColor};
+                 padding:6px 10px;font-weight:bold;">
+        ${pct}%
+      </td>
+    </tr>`;
+  }).join('')}
+
+═══════════════════════════════════════════════════════
+🔹 IMPORTANT REMINDERS
+═══════════════════════════════════════════════════════
+
+- NEVER use display:flex, display:grid, or display:inline-flex 
+  anywhere in the PDF HTML
+- NEVER use percentage widths on <td> — always use pixel widths
+- ALWAYS apply background-color on individual <td> elements 
+  not on <tr> or parent containers
+- ALWAYS use style="background-color:..." not bgcolor=""
+- Keep all content width within 550px total to fit A4 page margins
+- DO NOT change screen display, calculations, MongoDB, 
+  navigation or any other screens

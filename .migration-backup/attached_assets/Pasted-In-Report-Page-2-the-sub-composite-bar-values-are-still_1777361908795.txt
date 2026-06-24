@@ -1,0 +1,47 @@
+In Report Page 2, the sub-composite bar values are still showing as 0.3, 0.8, 0.4 etc instead of 3, 8, 4. The values are definitely being divided by 10 somewhere extra. Do exactly this:
+Step 1 — Find and fix the calculation file:
+
+Open the file where survey responses are calculated on submit
+Find these calculations and make sure they look EXACTLY like this:
+
+javascript// Skills sub-composites
+const behavior = totalBehaviorResponses / 16
+const knowledge = totalKnowledgeResponses / 8
+const skillScore = totalSkillResponses / 13
+
+// Will sub-composites
+const belief = totalBeliefResponses / 15
+const confidence = totalConfidenceResponses / 9
+const commitment = totalCommitmentResponses / 9
+const motivation = totalMotivationResponses / 9
+
+// Environmental sub-composites
+const leadership = totalLeadershipResponses / 12
+const organization = totalOrganizationResponses / 20
+const people = totalPeopleResponses / 11
+
+These results should be between 1 and 10
+If you see anything like / 160, / 80, / 130 or * 0.1 anywhere near these calculations — remove it
+
+Step 2 — Fix what is saved to MongoDB:
+
+Make sure the above raw values (1-10 range) are what gets saved to MongoDB
+NOT the percentage values, NOT divided by 10 again
+
+Step 3 — Fix what is passed to the bar chart:
+
+In ReportPage2, find where data is fetched from MongoDB or passed from navigation params
+Console.log the exact values received for behavior, knowledge, skill, belief, confidence, commitment, motivation, leadership, organization, people
+Pass these values DIRECTLY to the bar chart without any modification
+In the bar chart component, bar width = (value / 10) * availableBarWidth
+
+Step 4 — Do a global search:
+
+Search the entire codebase for /10 and * 0.1 near any sub-composite variable names
+Remove any extra division that is not part of the original formula
+
+Do NOT change:
+
+Directive vs Non-Directive chart
+Composite percentage formulas (skills, will, environmental)
+Colors, legends, headers, MongoDB connection, navigation, all other screens

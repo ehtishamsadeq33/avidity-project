@@ -1,0 +1,218 @@
+In the PDF download feature, the captured pages have huge empty white space because the ScrollView height is being captured instead of the actual content height. Fix this completely by changing the PDF generation approach:
+Replace the current PDF capture approach entirely:
+Instead of capturing React Native Views as images, generate the PDF directly as HTML using the report data. Do the following:
+
+Remove all captureRef and react-native-view-shot code from the PDF generation
+Instead build a complete HTML string using the report data that is already available in ReportPage3 via navigation params
+Use expo-print to convert the HTML to PDF
+Use expo-sharing to share/download the PDF
+
+Build the HTML for the PDF like this:
+javascriptconst generatePDFHTML = (candidateInfo, perceivedActual, composites, scores, reportPage3Data) => {
+  return `
+  <html>
+  <head>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 20px; background: #fffde7; }
+      .page { page-break-after: always; padding: 20px; }
+      .card { border: 2px solid #f5c842; border-radius: 12px; padding: 16px; margin-bottom: 16px; background: #fffde7; }
+      .header { font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 12px; }
+      .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+      .pill { border-radius: 25px; padding: 10px 16px; color: white; font-weight: bold; display: inline-block; }
+      .bar-container { background: #f5f5f5; border-radius: 8px; height: 28px; margin: 6px 0; position: relative; }
+      .bar-fill { border-radius: 8px; height: 28px; display: flex; align-items: center; padding-left: 8px; color: white; font-weight: bold; }
+      .composite-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; }
+      .comparison-row { display: flex; align-items: center; margin-bottom: 12px; }
+      .comparison-pill { flex: 1; padding: 12px; border-radius: 25px; color: white; font-weight: bold; display: flex; justify-content: space-between; }
+      .symbol-circle { width: 36px; height: 36px; background: #f5c842; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; margin: 0 8px; text-align: center; line-height: 36px; }
+      .statement-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+      .statement-title { font-weight: bold; text-decoration: underline; text-align: center; margin-bottom: 8px; }
+      .statement-body { font-size: 13px; text-align: center; color: #333; line-height: 1.6; }
+      table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+      td { padding: 6px 10px; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+
+  <!-- PAGE 1 -->
+  <div class="page">
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div><b>Name:</b> ${candidateInfo.name}</div>
+        <div><b>Gender:</b> ${candidateInfo.gender}</div>
+        <div><b>Age:</b> ${candidateInfo.age}</div>
+      </div>
+      <div>
+        <div><b>Years in Organization:</b> ${candidateInfo.yearsInOrganization}</div>
+        <div><b>Years in Position:</b> ${candidateInfo.yearsInPosition}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="header">Candidate's Perceived and Actual Coaching Skills Score</div>
+      <div style="background:#c8e6c9;border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="text-align:center;font-weight:bold;margin-bottom:8px;">What They Think</div>
+        <div class="bar-container">
+          <div class="bar-fill" style="width:${perceivedActual.whatTheyThinkPercent}%;background:#66bb6a;">
+            ${perceivedActual.whatTheyThinkPercent}%
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;"><span>0%</span><span>100%</span></div>
+      </div>
+      <div style="background:#388e3c;border-radius:10px;padding:12px;">
+        <div style="text-align:center;font-weight:bold;color:white;margin-bottom:8px;">Where They Are</div>
+        <div class="bar-container">
+          <div class="bar-fill" style="width:${perceivedActual.whereTheyArePercent}%;background:#1b5e20;">
+            <span style="color:white;">${perceivedActual.whereTheyArePercent}%</span>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:white;"><span>0%</span><span>100%</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;font-weight:bold;margin-bottom:12px;border-bottom:1px solid #f5c842;padding-bottom:8px;">
+        <span>Composites</span><span>Individual Results</span>
+      </div>
+      <div class="composite-row">
+        <span class="pill" style="background:#4caf50;flex:1;text-align:center;">Skills</span>
+        <span style="width:16px;"></span>
+        <span class="pill" style="background:#4caf50;flex:1;text-align:center;">${composites.skills.percent}%</span>
+      </div>
+      <div class="composite-row">
+        <span class="pill" style="background:#ff9800;flex:1;text-align:center;">Will</span>
+        <span style="width:16px;"></span>
+        <span class="pill" style="background:#ff9800;flex:1;text-align:center;">${composites.will.percent}%</span>
+      </div>
+      <div class="composite-row">
+        <span class="pill" style="background:#9c27b0;flex:1;text-align:center;">Environmental Support</span>
+        <span style="width:16px;"></span>
+        <span class="pill" style="background:#9c27b0;flex:1;text-align:center;">${composites.environmentalSupport.percent}%</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="header">Candidate's CRA Score Spread</div>
+      <table>
+        ${Object.entries(scores).filter(([,v]) => v > 0).map(([score, count], i) => {
+          const total = Object.values(scores).reduce((a,b) => a+b, 0);
+          const pct = ((count/total)*100).toFixed(2);
+          const colors = ['#e8e83a','#c8d439','#8fbc3b','#4da63e','#2e8b44','#a0522d','#c65b22','#e07000','#d44000','#b22222'];
+          const colorIndex = parseInt(score) - 1;
+          return `<tr style="background:${colors[colorIndex]};color:${colorIndex < 2 ? '#000' : '#fff'};">
+            <td><b>Score ${score}</b></td>
+            <td>${count} responses</td>
+            <td><b>${pct}%</b></td>
+          </tr>`;
+        }).join('')}
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE 2 -->
+  <div class="page">
+    <div><b>Name: ${candidateInfo.name}</b></div>
+    <br/>
+    <div style="background:#f5c842;border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;margin-bottom:16px;">
+      <b>Total CRA Score</b>
+      <b>${round2(((composites.skills.percent*1.3)+(composites.will.percent*1.45)+(composites.environmentalSupport.percent*1.25))/4)}%</b>
+    </div>
+
+    ${[
+      { label: 'Skills Composite', color: '#2e7d32', pct: composites.skills.percent, bars: [
+        { label: 'Skill', value: composites.skills.skill, color: '#1b5e20' },
+        { label: 'Knowledge', value: composites.skills.knowledge, color: '#a5d6a7' },
+        { label: 'Behavior', value: composites.skills.behavior, color: '#4caf50' },
+      ]},
+      { label: 'Will Composite', color: '#e65100', pct: composites.will.percent, bars: [
+        { label: 'Motivation', value: composites.will.motivation, color: '#fff9c4' },
+        { label: 'Confidence', value: composites.will.confidence, color: '#ffe0b2' },
+        { label: 'Commitment', value: composites.will.commitment, color: '#f9a825' },
+        { label: 'Believe', value: composites.will.belief, color: '#f57f17' },
+      ]},
+      { label: 'Environmental Support Composite', color: '#6a1b9a', pct: composites.environmentalSupport.percent, bars: [
+        { label: 'People', value: composites.environmentalSupport.people, color: '#4a148c' },
+        { label: 'Organization', value: composites.environmentalSupport.organization, color: '#9c27b0' },
+        { label: 'Leadership', value: composites.environmentalSupport.leadership, color: '#ce93d8' },
+      ]},
+    ].map(section => `
+      <div style="margin-bottom:16px;">
+        <div style="background:${section.color};border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;color:white;font-weight:bold;">
+          <span>${section.label}</span><span>${section.pct}%</span>
+        </div>
+        <div style="background:white;border-radius:10px;padding:12px;margin-top:8px;">
+          ${section.bars.map(bar => `
+            <div style="display:flex;align-items:center;margin-bottom:8px;">
+              <span style="width:80px;font-size:11px;font-weight:bold;">${bar.label}</span>
+              <div style="flex:1;background:#f5f5f5;border-radius:6px;height:22px;position:relative;">
+                <div style="width:${(bar.value/10)*100}%;background:${bar.color};border-radius:6px;height:22px;display:flex;align-items:center;padding-left:4px;">
+                  <span style="font-size:10px;font-weight:bold;color:${bar.value > 7 ? '#fff' : '#333'};">${bar.value.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;margin-top:4px;">
+            ${[0,1,2,3,4,5,6,7,8,9,10].map(t => `<span>${t}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+    `).join('')}
+
+    <div style="margin-bottom:16px;">
+      <div style="background:#1a237e;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;color:white;font-weight:bold;">
+        <span>Directive vs Non-Directive Scale</span><span>${composites.directiveNonDirective.percent}%</span>
+      </div>
+      <div style="background:white;border-radius:10px;padding:12px;margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="background:#2e7d32;color:white;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:bold;">Non-Directive</span>
+          <span style="background:#e65100;color:white;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:bold;">Directive</span>
+        </div>
+        <div style="background:#eeeeee;border-radius:6px;height:28px;position:relative;">
+          <div style="width:${composites.directiveNonDirective.percent}%;background:#1565c0;border-radius:6px;height:28px;display:flex;align-items:center;justify-content:center;">
+            <span style="color:white;font-weight:bold;font-size:11px;">${composites.directiveNonDirective.percent}%</span>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;margin-top:4px;">
+          <span>0%</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100%</span>
+        </div>
+        <div style="text-align:center;font-weight:bold;margin-top:8px;">
+          ${composites.directiveNonDirective.percent > 50 ? 'Leans Directive' : composites.directiveNonDirective.percent < 50 ? 'Leans Non-Directive' : 'Balanced'}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 3 -->
+  <div class="page">
+    <h2>What do your results mean?</h2>
+    ${reportPage3Data.map(section => `
+      <div style="margin-bottom:24px;">
+        <div style="display:flex;align-items:center;margin-bottom:12px;">
+          <div style="flex:1;background:${section.leftColor};border-radius:25px;padding:12px 16px;color:white;font-weight:bold;display:flex;justify-content:space-between;">
+            <span>${section.leftLabel}</span><span>${section.leftPct}%</span>
+          </div>
+          <div style="width:36px;height:36px;background:#f5c842;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px;margin:0 8px;text-align:center;line-height:36px;">
+            ${section.symbol}
+          </div>
+          <div style="flex:1;background:${section.rightColor};border-radius:25px;padding:12px 16px;color:white;font-weight:bold;display:flex;justify-content:space-between;">
+            <span>${section.rightLabel}</span><span>${section.rightPct}%</span>
+          </div>
+        </div>
+        <div class="statement-card">
+          <div class="statement-title">${section.title}</div>
+          <div class="statement-body">${section.statement}</div>
+        </div>
+      </div>
+    `).join('')}
+  </div>
+
+  </body>
+  </html>
+  `;
+};
+
+Calculate reportPage3Data array in ReportPage3 using the same comparison logic already used to display on screen — extract it into a reusable array of objects with fields: leftLabel, leftColor, leftPct, symbol, rightLabel, rightColor, rightPct, title, statement
+Pass all needed data to generatePDFHTML and call Print.printToFileAsync({ html }) then Sharing.shareAsync(uri)
+Remove all captureRef, react-native-view-shot code entirely
+
+Do NOT change anything in the actual screen display, calculations, MongoDB, navigation or other screens

@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "7QxftvvlKjt9Hu4vRcINA"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "avidity_app_icon"

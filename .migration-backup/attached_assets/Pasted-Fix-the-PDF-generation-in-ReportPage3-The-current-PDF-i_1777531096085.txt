@@ -1,0 +1,456 @@
+Fix the PDF generation in ReportPage3. The current PDF is missing all 
+chart bars and Page 3 is completely empty. Fix both issues below.
+
+═══════════════════════════════════════════════════════
+🔹 PROBLEM 1: BARS/CHARTS NOT SHOWING IN PDF
+═══════════════════════════════════════════════════════
+
+expo-print uses a limited WebKit renderer that does NOT support:
+- display: flex inside table cells or divs reliably
+- percentage-width child divs inside flex containers
+- inline-flex
+
+Replace ALL bar charts in the HTML with TABLE-based bars instead.
+This is the only reliable way to render progress bars in expo-print.
+
+Use this exact pattern for every bar:
+
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0;">
+  <tr>
+    <td width="PERCENT%" style="background:COLOR;height:28px;border-radius:8px 0 0 8px;padding-left:8px;color:white;font-weight:bold;font-size:12px;">
+      VALUE
+    </td>
+    <td width="REMAINDER%" style="background:#f0f0f0;height:28px;border-radius:0 8px 8px 0;">
+    </td>
+  </tr>
+</table>
+
+Where:
+- PERCENT = the percentage value (e.g. 40)
+- REMAINDER = 100 - PERCENT (e.g. 60)
+- COLOR = the bar color
+- VALUE = the label or score to show inside the bar
+
+Apply this table-bar pattern to:
+1. "What They Think" bar
+2. "Where They Are" bar  
+3. Every sub-bar inside Skills, Will, Environmental Support composites
+4. The Directive vs Non-Directive bar
+
+For the composite sub-bars (Skills/Will/Environmental), the bar 
+width is (value / 10) * 100 percent since scores are out of 10.
+
+═══════════════════════════════════════════════════════
+🔹 PROBLEM 2: PAGE 3 IS COMPLETELY EMPTY
+═══════════════════════════════════════════════════════
+
+The reportPage3Data array is empty or undefined when passed to 
+generatePDFHTML. Fix this by extracting the comparison data 
+directly inside the generatePDFHTML function or computing it 
+inline from the composites and scores that are already passed in.
+
+Page 3 shows a comparison between perceived vs actual for each 
+composite section. Build the reportPage3Data array like this 
+inside the function using the data already available:
+
+const reportPage3Data = [
+  {
+    leftLabel: 'Perceived Skills',
+    leftColor: '#4caf50',
+    leftPct: composites.skills.perceived,      // perceived score %
+    symbol: composites.skills.perceived >= composites.skills.percent ? '>' : '<',
+    rightLabel: 'Actual Skills',
+    rightColor: '#2e7d32',
+    rightPct: composites.skills.percent,
+    title: 'Skills',
+    statement: getSkillsStatement(composites.skills.percent),
+  },
+  {
+    leftLabel: 'Perceived Will',
+    leftColor: '#ff9800',
+    leftPct: composites.will.perceived,
+    symbol: composites.will.perceived >= composites.will.percent ? '>' : '<',
+    rightLabel: 'Actual Will',
+    rightColor: '#e65100',
+    rightPct: composites.will.percent,
+    title: 'Will',
+    statement: getWillStatement(composites.will.percent),
+  },
+  {
+    leftLabel: 'Perceived Environmental Support',
+    leftColor: '#ce93d8',
+    leftPct: composites.environmentalSupport.perceived,
+    symbol: composites.environmentalSupport.perceived >= composites.environmentalSupport.percent ? '>' : '<',
+    rightLabel: 'Actual Environmental Support',
+    rightColor: '#6a1b9a',
+    rightPct: composites.environmentalSupport.percent,
+    title: 'Environmental Support',
+    statement: getEnvStatement(composites.environmentalSupport.percent),
+  },
+];
+
+Use the SAME statement logic already used on the ReportPage3 screen 
+to generate the text for getSkillsStatement(), getWillStatement(), 
+and getEnvStatement(). Extract those into helper functions.
+
+═══════════════════════════════════════════════════════
+🔹 COMPLETE FIXED generatePDFHTML FUNCTION
+═══════════════════════════════════════════════════════
+
+Replace the entire generatePDFHTML function with this structure:
+
+const generatePDFHTML = (candidateInfo, perceivedActual, composites, scores) => {
+
+  // Helper: build a table-based bar
+  const bar = (percent, color, label) => {
+    const pct = Math.min(Math.max(Math.round(percent), 1), 99);
+    const rem = 100 - pct;
+    return `
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0;border-radius:8px;overflow:hidden;">
+        <tr>
+          <td width="${pct}%" bgcolor="${color}" style="height:28px;padding-left:8px;color:white;font-weight:bold;font-size:12px;vertical-align:middle;">
+            ${label}
+          </td>
+          <td width="${rem}%" bgcolor="#f0f0f0" style="height:28px;"></td>
+        </tr>
+      </table>`;
+  };
+
+  // Helper: sub-bar for scores out of 10
+  const subBar = (value, color, label) => {
+    const pct = Math.round((value / 10) * 100);
+    return `
+      <tr>
+        <td style="width:90px;font-size:11px;font-weight:bold;padding:4px 8px 4px 0;vertical-align:middle;">${label}</td>
+        <td style="vertical-align:middle;">
+          ${bar(pct, color, value.toFixed(2))}
+        </td>
+      </tr>`;
+  };
+
+  // Build reportPage3Data using same logic as screen
+  const getStatement = (label, pct) => {
+    // Use the exact same if/else statement logic already in ReportPage3
+    // for each composite and return the matching text string
+    // IMPORTANT: copy the exact statement strings from the existing 
+    // ReportPage3 screen display logic — do not invent new ones
+  };
+
+  const reportPage3Data = [
+    {
+      leftLabel: 'Perceived Skills',
+      leftColor: '#4caf50',
+      leftPct: composites.skills.perceived ?? composites.skills.percent,
+      symbol: '↔',
+      rightLabel: 'Actual Skills',
+      rightColor: '#2e7d32',
+      rightPct: composites.skills.percent,
+      title: 'Skills',
+      statement: getStatement('skills', composites.skills.percent),
+    },
+    {
+      leftLabel: 'Perceived Will',
+      leftColor: '#ff9800',
+      leftPct: composites.will.perceived ?? composites.will.percent,
+      symbol: '↔',
+      rightLabel: 'Actual Will',
+      rightColor: '#e65100',
+      rightPct: composites.will.percent,
+      title: 'Will',
+      statement: getStatement('will', composites.will.percent),
+    },
+    {
+      leftLabel: 'Perceived Environmental Support',
+      leftColor: '#ce93d8',
+      leftPct: composites.environmentalSupport.perceived ?? composites.environmentalSupport.percent,
+      symbol: '↔',
+      rightLabel: 'Actual Environmental Support',
+      rightColor: '#6a1b9a',
+      rightPct: composites.environmentalSupport.percent,
+      title: 'Environmental Support',
+      statement: getStatement('env', composites.environmentalSupport.percent),
+    },
+  ];
+
+  // Score spread colors (score 1-10)
+  const scoreColors = [
+    '#e8e83a','#c8d439','#8fbc3b','#4da63e',
+    '#2e8b44','#a0522d','#c65b22','#e07000',
+    '#d44000','#b22222'
+  ];
+  const totalResponses = Object.values(scores).reduce((a,b) => a+b, 0);
+
+  return `
+  <html>
+  <head>
+    <meta charset="UTF-8"/>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 20px; background: #fffde7; font-size: 13px; }
+      .page { page-break-after: always; padding: 20px; }
+      .last-page { padding: 20px; }
+      .card { border: 2px solid #f5c842; border-radius: 12px; padding: 16px; margin-bottom: 16px; background: #fffde7; }
+      .header { font-size: 16px; font-weight: bold; text-align: center; margin-bottom: 12px; }
+      .section-header { border-radius: 10px; padding: 12px 16px; color: white; font-weight: bold; margin-bottom: 8px; }
+      .statement-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 24px; border: 1px solid #ddd; }
+      .statement-title { font-weight: bold; text-decoration: underline; text-align: center; margin-bottom: 8px; font-size: 14px; }
+      .statement-body { font-size: 12px; text-align: center; color: #333; line-height: 1.6; }
+      table.info-table td { padding: 4px 8px; font-size: 13px; }
+      .pill { border-radius: 25px; padding: 8px 14px; color: white; font-weight: bold; display: inline-block; font-size: 12px; }
+      .tick-row { display: table; width: 100%; margin-top: 4px; }
+      .tick-cell { display: table-cell; text-align: center; font-size: 9px; color: #555; width: 9%; }
+    </style>
+  </head>
+  <body>
+
+  <!-- ═══ PAGE 1 ═══ -->
+  <div class="page">
+
+    <table class="info-table" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+      <tr>
+        <td><b>Name:</b> ${candidateInfo.name}</td>
+        <td><b>Years in Organization:</b> ${candidateInfo.yearsInOrganization}</td>
+      </tr>
+      <tr>
+        <td><b>Gender:</b> ${candidateInfo.gender}</td>
+        <td><b>Years in Position:</b> ${candidateInfo.yearsInPosition}</td>
+      </tr>
+      <tr>
+        <td><b>Age:</b> ${candidateInfo.age}</td>
+        <td></td>
+      </tr>
+    </table>
+
+    <!-- Perceived vs Actual -->
+    <div class="card">
+      <div class="header">Candidate's Perceived and Actual Coaching Skills Score</div>
+
+      <div style="background:#c8e6c9;border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="font-weight:bold;text-align:center;margin-bottom:6px;">What They Think</div>
+        ${bar(perceivedActual.whatTheyThinkPercent, '#66bb6a', perceivedActual.whatTheyThinkPercent + '%')}
+        <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-size:10px;">0%</td><td style="font-size:10px;text-align:right;">100%</td></tr></table>
+      </div>
+
+      <div style="background:#388e3c;border-radius:10px;padding:12px;">
+        <div style="font-weight:bold;text-align:center;color:white;margin-bottom:6px;">Where They Are</div>
+        ${bar(perceivedActual.whereTheyArePercent, '#1b5e20', perceivedActual.whereTheyArePercent + '%')}
+        <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-size:10px;color:white;">0%</td><td style="font-size:10px;text-align:right;color:white;">100%</td></tr></table>
+      </div>
+    </div>
+
+    <!-- Composites -->
+    <div class="card">
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;border-bottom:1px solid #f5c842;padding-bottom:8px;">
+        <tr>
+          <td style="font-weight:bold;">Composites</td>
+          <td style="font-weight:bold;text-align:right;">Individual Results</td>
+        </tr>
+      </table>
+      <table width="100%" cellpadding="4" cellspacing="0">
+        <tr>
+          <td><span class="pill" style="background:#4caf50;display:block;text-align:center;">Skills</span></td>
+          <td><span class="pill" style="background:#4caf50;display:block;text-align:center;">${composites.skills.percent}%</span></td>
+        </tr>
+        <tr>
+          <td><span class="pill" style="background:#ff9800;display:block;text-align:center;">Will</span></td>
+          <td><span class="pill" style="background:#ff9800;display:block;text-align:center;">${composites.will.percent}%</span></td>
+        </tr>
+        <tr>
+          <td><span class="pill" style="background:#9c27b0;display:block;text-align:center;">Environmental Support</span></td>
+          <td><span class="pill" style="background:#9c27b0;display:block;text-align:center;">${composites.environmentalSupport.percent}%</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Score Spread -->
+    <div class="card">
+      <div class="header">Candidate's CRA Score Spread</div>
+      <table width="100%" cellpadding="6" cellspacing="0">
+        ${Object.entries(scores)
+          .filter(([,v]) => v > 0)
+          .map(([score, count]) => {
+            const pct = totalResponses > 0 ? ((count / totalResponses) * 100).toFixed(2) : '0.00';
+            const idx = parseInt(score) - 1;
+            const bg = scoreColors[idx] || '#ccc';
+            const textColor = idx < 2 ? '#000' : '#fff';
+            return `<tr style="background:${bg};color:${textColor};">
+              <td><b>Score ${score}</b></td>
+              <td>${count} responses</td>
+              <td><b>${pct}%</b></td>
+            </tr>`;
+          }).join('')}
+      </table>
+    </div>
+
+  </div>
+
+  <!-- ═══ PAGE 2 ═══ -->
+  <div class="page">
+
+    <p><b>Name: ${candidateInfo.name}</b></p>
+
+    <div style="background:#f5c842;border-radius:12px;padding:12px 16px;margin-bottom:16px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="font-weight:bold;">Total CRA Score</td>
+          <td style="font-weight:bold;text-align:right;">${composites.totalCRA ?? composites.skills.percent}%</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Skills Composite -->
+    <div style="margin-bottom:16px;">
+      <div class="section-header" style="background:#2e7d32;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td>Skills Composite</td><td style="text-align:right;">${composites.skills.percent}%</td></tr>
+        </table>
+      </div>
+      <div style="background:white;border-radius:10px;padding:12px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${subBar(composites.skills.skill ?? 0,      '#1b5e20', 'Skill')}
+          ${subBar(composites.skills.knowledge ?? 0,  '#a5d6a7', 'Knowledge')}
+          ${subBar(composites.skills.behavior ?? 0,   '#4caf50', 'Behavior')}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;">
+          <tr>${[0,1,2,3,4,5,6,7,8,9,10].map(t=>`<td style="font-size:9px;color:#555;text-align:center;">${t}</td>`).join('')}</tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Will Composite -->
+    <div style="margin-bottom:16px;">
+      <div class="section-header" style="background:#e65100;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td>Will Composite</td><td style="text-align:right;">${composites.will.percent}%</td></tr>
+        </table>
+      </div>
+      <div style="background:white;border-radius:10px;padding:12px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${subBar(composites.will.motivation ?? 0,  '#fff9c4', 'Motivation')}
+          ${subBar(composites.will.confidence ?? 0,  '#ffe0b2', 'Confidence')}
+          ${subBar(composites.will.commitment ?? 0,  '#f9a825', 'Commitment')}
+          ${subBar(composites.will.belief ?? 0,      '#f57f17', 'Believe')}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;">
+          <tr>${[0,1,2,3,4,5,6,7,8,9,10].map(t=>`<td style="font-size:9px;color:#555;text-align:center;">${t}</td>`).join('')}</tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Environmental Support Composite -->
+    <div style="margin-bottom:16px;">
+      <div class="section-header" style="background:#6a1b9a;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td>Environmental Support Composite</td><td style="text-align:right;">${composites.environmentalSupport.percent}%</td></tr>
+        </table>
+      </div>
+      <div style="background:white;border-radius:10px;padding:12px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${subBar(composites.environmentalSupport.people ?? 0,       '#4a148c', 'People')}
+          ${subBar(composites.environmentalSupport.organization ?? 0, '#9c27b0', 'Organization')}
+          ${subBar(composites.environmentalSupport.leadership ?? 0,   '#ce93d8', 'Leadership')}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;">
+          <tr>${[0,1,2,3,4,5,6,7,8,9,10].map(t=>`<td style="font-size:9px;color:#555;text-align:center;">${t}</td>`).join('')}</tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Directive vs Non-Directive -->
+    <div style="margin-bottom:16px;">
+      <div class="section-header" style="background:#1a237e;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td>Directive vs Non-Directive Scale</td><td style="text-align:right;">${composites.directiveNonDirective.percent}%</td></tr>
+        </table>
+      </div>
+      <div style="background:white;border-radius:10px;padding:12px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+          <tr>
+            <td><span class="pill" style="background:#2e7d32;">Non-Directive</span></td>
+            <td style="text-align:right;"><span class="pill" style="background:#e65100;">Directive</span></td>
+          </tr>
+        </table>
+        ${bar(composites.directiveNonDirective.percent, '#1565c0', composites.directiveNonDirective.percent + '%')}
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;">
+          <tr><td style="font-size:9px;color:#555;">0%</td><td style="font-size:9px;color:#555;text-align:center;">50%</td><td style="font-size:9px;color:#555;text-align:right;">100%</td></tr>
+        </table>
+        <p style="text-align:center;font-weight:bold;margin-top:8px;">
+          ${composites.directiveNonDirective.percent > 50 ? 'Leans Directive' : composites.directiveNonDirective.percent < 50 ? 'Leans Non-Directive' : 'Balanced'}
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ PAGE 3 ═══ -->
+  <div class="last-page">
+
+    <h2 style="text-align:center;">What do your results mean?</h2>
+
+    ${reportPage3Data.map(section => `
+      <div style="margin-bottom:24px;">
+        <table width="100%" cellpadding="0" cellspacing="8" style="margin-bottom:12px;">
+          <tr>
+            <td width="44%">
+              <div style="background:${section.leftColor};border-radius:25px;padding:12px 14px;color:white;font-weight:bold;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="color:white;font-weight:bold;font-size:12px;">${section.leftLabel}</td>
+                    <td style="color:white;font-weight:bold;text-align:right;font-size:12px;">${section.leftPct}%</td>
+                  </tr>
+                </table>
+              </div>
+            </td>
+            <td width="10%" style="text-align:center;font-weight:bold;font-size:20px;color:#f5c842;">${section.symbol}</td>
+            <td width="44%">
+              <div style="background:${section.rightColor};border-radius:25px;padding:12px 14px;color:white;font-weight:bold;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="color:white;font-weight:bold;font-size:12px;">${section.rightLabel}</td>
+                    <td style="color:white;font-weight:bold;text-align:right;font-size:12px;">${section.rightPct}%</td>
+                  </tr>
+                </table>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <div class="statement-card">
+          <div class="statement-title">${section.title}</div>
+          <div class="statement-body">${section.statement}</div>
+        </div>
+      </div>
+    `).join('')}
+
+  </div>
+
+  </body>
+  </html>
+  `;
+};
+
+═══════════════════════════════════════════════════════
+🔹 KEY RULES
+═══════════════════════════════════════════════════════
+
+1. Use bgcolor="" attribute on <td> tags for background colors — 
+   NOT background CSS inside style="" — because expo-print WebKit 
+   does not always apply CSS background-color on table cells reliably.
+   bgcolor is the safe approach.
+
+2. Never use display:flex or display:grid anywhere in the PDF HTML.
+   Use <table> for ALL layout.
+
+3. Never use position:relative or position:absolute in the PDF HTML.
+
+4. The getStatement() helper must use the EXACT same if/else 
+   conditions and text strings already shown on the ReportPage3 
+   screen. Do not invent new text.
+
+5. DO NOT change anything about:
+   - The ReportPage3 screen display (what the user sees on screen)
+   - The score calculations
+   - MongoDB or backend
+   - Navigation or other screens
+   - The download button trigger logic
+
+Only fix the generatePDFHTML function and the reportPage3Data 
+extraction so the PDF renders with visible bars and a populated Page 3.

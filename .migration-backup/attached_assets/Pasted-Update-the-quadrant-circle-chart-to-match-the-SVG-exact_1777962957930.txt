@@ -1,0 +1,98 @@
+Update the quadrant circle chart to match the SVG exactly:
+
+The quadrant order in your React Native code is:
+
+Top Left: Skill Composite — Green #2e7d32
+Top Right: Will Composite — Orange #e65100
+Bottom Left: Directive vs Non-Directive — Dark Blue #1a237e
+Bottom Right: Environmental Support — Purple #6a1b9a
+
+
+Update the canvas JavaScript to use these exact angles:
+
+javascript(function() {
+  var canvas = document.getElementById('compositeChart');
+  if (!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d');
+  var cx = 200, cy = 190, r = 140;
+
+  // Top Left — Skill Composite — Green (180° to 270°)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, Math.PI, Math.PI * 1.5);
+  ctx.closePath();
+  ctx.fillStyle = '#2e7d32';
+  ctx.fill();
+
+  // Top Right — Will Composite — Orange (270° to 360°)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, Math.PI * 1.5, 0);
+  ctx.closePath();
+  ctx.fillStyle = '#e65100';
+  ctx.fill();
+
+  // Bottom Left — Directive — Dark Blue (90° to 180°)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, Math.PI * 0.5, Math.PI);
+  ctx.closePath();
+  ctx.fillStyle = '#1a237e';
+  ctx.fill();
+
+  // Bottom Right — Environmental Support — Purple (0° to 90°)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, 0, Math.PI * 0.5);
+  ctx.closePath();
+  ctx.fillStyle = '#6a1b9a';
+  ctx.fill();
+
+  // White dividing lines
+  ctx.strokeStyle = '#fffde7';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(cx, cy - r - 5); ctx.lineTo(cx, cy + r + 5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - r - 5, cy); ctx.lineTo(cx + r + 5, cy); ctx.stroke();
+
+  // Inside labels
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 13px Arial';
+  ctx.fillText('Skill', cx - 55, cy - 45);
+  ctx.fillText('Composite', cx - 55, cy - 28);
+  ctx.fillText('Will', cx + 55, cy - 45);
+  ctx.fillText('Composite', cx + 55, cy - 28);
+  ctx.font = 'bold 11px Arial';
+  ctx.fillText('Directive vs.', cx - 55, cy + 35);
+  ctx.fillText('Non-Directive', cx - 55, cy + 50);
+  ctx.fillText('Scale', cx - 55, cy + 65);
+  ctx.fillText('Environmental', cx + 55, cy + 30);
+  ctx.fillText('Support', cx + 55, cy + 45);
+  ctx.fillText('Composite', cx + 55, cy + 60);
+
+  // External labels left (Skill)
+  ctx.fillStyle = '#1A1A1A';
+  ctx.font = '11px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText('Skill', cx - r - 8, cy - 80);
+  ctx.fillText('Behavior', cx - r - 8, cy - 65);
+  ctx.fillText('Knowledge', cx - r - 8, cy - 50);
+
+  // External labels right top (Will)
+  ctx.textAlign = 'left';
+  ctx.fillText('Motivation', cx + r + 8, cy - 100);
+  ctx.fillText('Confidence', cx + r + 8, cy - 85);
+  ctx.fillText('Belief', cx + r + 8, cy - 70);
+  ctx.fillText('Commitment', cx + r + 8, cy - 55);
+
+  // External labels right bottom (Environmental)
+  ctx.fillText('People', cx + r + 8, cy + 20);
+  ctx.fillText('Leadership', cx + r + 8, cy + 35);
+  ctx.fillText('Organization', cx + r + 8, cy + 50);
+})();
+Fix 4 — Make the canvas wide enough for external labels:
+
+Change canvas to width="500" height="400"
+Update cx to 200 to leave room for right side labels
+
+Do NOT change Page 1, Page 2, Page 3, calculations, MongoDB, navigation or other files
