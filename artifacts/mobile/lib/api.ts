@@ -1,9 +1,22 @@
+import Constants from "expo-constants";
+
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT || "3000";
+
+function getApiHost(): string {
+  // In development, extract the host from the Expo dev server URL
+  const debuggerHost = Constants.expoConfig?.hostUri || 
+                       (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ||
+                       (Constants as any).manifest?.debuggerHost;
+  if (debuggerHost) {
+    return debuggerHost.split(":")[0]; // Extract just the IP part
+  }
+  return "localhost";
+}
 
 export const API_BASE = DOMAIN
   ? `https://${DOMAIN}/api`
-  : `http://localhost:${API_PORT || 8080}/api`;
+  : `http://${getApiHost()}:${API_PORT}/api`;
 
 export interface SurveyQuestion {
   id: string;

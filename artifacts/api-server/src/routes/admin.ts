@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Router, type IRouter, type Request } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -20,19 +23,23 @@ const router: IRouter = Router();
 function resolveChromiumPath(): string {
   const envPath = process.env["PUPPETEER_EXECUTABLE_PATH"];
   if (envPath) return envPath;
-  const playwrightPath = process.env["REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE"];
-  if (playwrightPath) return playwrightPath;
-  try {
-    return execSync("which chromium", { encoding: "utf8" }).trim();
-  } catch {
-    /* */
+  // Windows default Chrome paths
+  const windowsPaths = [
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    `C:\\Users\\${process.env.USERNAME}\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe`,
+  ];
+  for (const p of windowsPaths) {
+    if (fs.existsSync(p)) return p;
   }
-  try {
-    return execSync("which chromium-browser", { encoding: "utf8" }).trim();
-  } catch {
-    /* */
-  }
-  return "/usr/bin/chromium";
+  return "chrome";
+}
+function getAssetsPath(): string {
+  if (process.env["ASSETS_PATH"]) return process.env["ASSETS_PATH"];
+  return path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../../../artifacts/mobile/assets/images"
+  );
 }
 
 type AdminReq = Request & { admin?: AdminTokenPayload };

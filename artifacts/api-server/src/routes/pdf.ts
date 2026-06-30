@@ -3,6 +3,7 @@ import puppeteer from "puppeteer-core";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   generateReportHTML,
   type CandidateInfo,
@@ -36,18 +37,26 @@ const router: IRouter = Router();
 function resolveChromiumPath(): string {
   const envPath = process.env["PUPPETEER_EXECUTABLE_PATH"];
   if (envPath) return envPath;
-  const playwrightPath = process.env["REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE"];
-  if (playwrightPath) return playwrightPath;
-  try {
-    return execSync("which chromium", { encoding: "utf8" }).trim();
-  } catch {
-    try {
-      return execSync("which chromium-browser", { encoding: "utf8" }).trim();
-    } catch {
-      return "/usr/bin/chromium";
-    }
+  // Windows default Chrome paths
+  const windowsPaths = [
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    `C:\\Users\\${process.env.USERNAME}\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe`,
+  ];
+  for (const p of windowsPaths) {
+    if (fs.existsSync(p)) return p;
   }
+  return "chrome";
 }
+
+function getAssetsPath(): string {
+  if (process.env["ASSETS_PATH"]) return process.env["ASSETS_PATH"];
+  return path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../../../artifacts/mobile/assets/images"
+  );
+}
+
 // ── Group Report PDF: POST /pdf/group ──────────────────────────────────────────
 router.post("/pdf/group", async (req, res) => {
   try {
@@ -90,7 +99,7 @@ router.post("/pdf/group", async (req, res) => {
 
     // Load all the same images as /pdf
     const LOGO_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Group Pre Report.png";
+      `${getAssetsPath()}/260622_Group Pre Report.png`;
     let logoBase64 = "";
     try {
       if (fs.existsSync(LOGO_PATH)) {
@@ -101,7 +110,7 @@ router.post("/pdf/group", async (req, res) => {
     }
 
     const QUOTE_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/CRA-02.png";
+      `${getAssetsPath()}/CRA-02.png`;
     let quoteImageBase64 = "";
     try {
       if (fs.existsSync(QUOTE_IMG_PATH)) {
@@ -112,7 +121,7 @@ router.post("/pdf/group", async (req, res) => {
     }
 
     const CHART_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/CRA-07.png";
+      `${getAssetsPath()}/CRA-07.png`;
     let chartImageBase64 = "";
     try {
       if (fs.existsSync(CHART_IMG_PATH)) {
@@ -123,10 +132,10 @@ router.post("/pdf/group", async (req, res) => {
     }
 
     const cardImagePaths = [
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Skills Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Will Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Environment Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_D-ND Composite.png",
+      `${getAssetsPath()}/260622_Skills Composite.png`,
+      `${getAssetsPath()}/260622_Will Composite.png`,
+      `${getAssetsPath()}/260622_Environment Composite.png`,
+      `${getAssetsPath()}/260622_D-ND Composite.png`,
     ];
     const cardImagesBase64: string[] = cardImagePaths.map((imgPath) => {
       try {
@@ -140,7 +149,7 @@ router.post("/pdf/group", async (req, res) => {
     });
     // ── actualskill chart image ────────────────────────────
     const actualskills_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Perceived & Actual Skills.png";
+      `${getAssetsPath()}/260622_Perceived & Actual Skills.png`;
     let actualskillsImageBase64 = "";
     try {
       if (fs.existsSync(actualskills_IMG_PATH)) {
@@ -152,7 +161,7 @@ router.post("/pdf/group", async (req, res) => {
 
     // ── Composite chart image ────────────────────────────
     const Composite_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Composite Scores.png";
+      `${getAssetsPath()}/260622_Composite Scores.png`;
     let CompositeImageBase64 = "";
     try {
       if (fs.existsSync(Composite_IMG_PATH)) {
@@ -164,7 +173,7 @@ router.post("/pdf/group", async (req, res) => {
 
     // ── Cra chart image ────────────────────────────
     const CRA_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_CRA Score Spread.png";
+      `${getAssetsPath()}/260622_CRA Score Spread.png`;
     let CRAImageBase64 = "";
     try {
       if (fs.existsSync(CRA_IMG_PATH)) {
@@ -175,7 +184,7 @@ router.post("/pdf/group", async (req, res) => {
     }
     // ── Compare chart image ────────────────────────────
     const Compare_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_How To Read This Section.png";
+      `${getAssetsPath()}/260622_How To Read This Section.png`;
     let CompareImageBase64 = "";
     try {
       if (fs.existsSync(Compare_IMG_PATH)) {
@@ -564,7 +573,7 @@ router.post("/pdf/group/combine", async (req, res) => {
 
     // Load images
     const LOGO_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Group Pre & Post Report.png";
+      `${getAssetsPath()}/260622_Group Pre & Post Report.png`;
     let logoBase64 = "";
     try {
       if (fs.existsSync(LOGO_PATH)) {
@@ -575,7 +584,7 @@ router.post("/pdf/group/combine", async (req, res) => {
     }
 
     const QUOTE_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/CRA-02.png";
+      `${getAssetsPath()}/CRA-02.png`;
     let quoteImageBase64 = "";
     try {
       if (fs.existsSync(QUOTE_IMG_PATH)) {
@@ -586,7 +595,7 @@ router.post("/pdf/group/combine", async (req, res) => {
     }
 
     const CHART_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/CRA-07.png";
+      `${getAssetsPath()}/CRA-07.png`;
     let chartImageBase64 = "";
     try {
       if (fs.existsSync(CHART_IMG_PATH)) {
@@ -597,10 +606,10 @@ router.post("/pdf/group/combine", async (req, res) => {
     }
 
     const cardImagePaths = [
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Skills Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Will Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Environment Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_D-ND Composite.png",
+      `${getAssetsPath()}/260622_Skills Composite.png`,
+      `${getAssetsPath()}/260622_Will Composite.png`,
+      `${getAssetsPath()}/260622_Environment Composite.png`,
+      `${getAssetsPath()}/260622_D-ND Composite.png`,
     ];
     const cardImagesBase64: string[] = cardImagePaths.map((imgPath) => {
       try {
@@ -615,7 +624,7 @@ router.post("/pdf/group/combine", async (req, res) => {
 
     // ── actualskill chart image ────────────────────────────
     const actualskills_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Perceived & Actual Skills.png";
+      `${getAssetsPath()}/260622_Perceived & Actual Skills.png`;
     let actualskillsImageBase64 = "";
     try {
       if (fs.existsSync(actualskills_IMG_PATH)) {
@@ -627,7 +636,7 @@ router.post("/pdf/group/combine", async (req, res) => {
 
     // ── Composite chart image ────────────────────────────
     const Composite_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Composite Scores.png";
+      `${getAssetsPath()}/260622_Composite Scores.png`;
     let CompositeImageBase64 = "";
     try {
       if (fs.existsSync(Composite_IMG_PATH)) {
@@ -639,7 +648,7 @@ router.post("/pdf/group/combine", async (req, res) => {
 
     // ── Cra chart image ────────────────────────────
     const CRA_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_CRA Score Spread.png";
+      `${getAssetsPath()}/260622_CRA Score Spread.png`;
     let CRAImageBase64 = "";
     try {
       if (fs.existsSync(CRA_IMG_PATH)) {
@@ -651,7 +660,7 @@ router.post("/pdf/group/combine", async (req, res) => {
 
     // ── Compare chart image ────────────────────────────
     const Compare_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_How To Read This Section.png";
+      `${getAssetsPath()}/260622_How To Read This Section.png`;
     let CompareImageBase64 = "";
     try {
       if (fs.existsSync(Compare_IMG_PATH)) {
@@ -813,7 +822,7 @@ router.post("/pdf", async (req, res) => {
     }
 
     const LOGO_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Individual Pre Report.png";
+      `${getAssetsPath()}/260622_Individual Pre Report.png`;
     let logoBase64 = "";
     try {
       if (fs.existsSync(LOGO_PATH)) {
@@ -825,7 +834,7 @@ router.post("/pdf", async (req, res) => {
     }
     // ── NEW: load CRA-02 for the quote block ──────────────────
     const QUOTE_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/CRA-02.png";
+      `${getAssetsPath()}/CRA-02.png`;
     let quoteImageBase64 = "";
     try {
       if (fs.existsSync(QUOTE_IMG_PATH)) {
@@ -837,7 +846,7 @@ router.post("/pdf", async (req, res) => {
 
     // ── Load composite chart image ────────────────────────────
     const CHART_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/CRA-07.png";
+      `${getAssetsPath()}/CRA-07.png`;
     let chartImageBase64 = "";
     try {
       if (fs.existsSync(CHART_IMG_PATH)) {
@@ -849,10 +858,10 @@ router.post("/pdf", async (req, res) => {
 
     // ── Load highlight card images ────────────────────────────
     const cardImagePaths = [
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Skills Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Will Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Environment Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_D-ND Composite.png",
+      `${getAssetsPath()}/260622_Skills Composite.png`,
+      `${getAssetsPath()}/260622_Will Composite.png`,
+      `${getAssetsPath()}/260622_Environment Composite.png`,
+      `${getAssetsPath()}/260622_D-ND Composite.png`,
     ];
     const cardImagesBase64: string[] = cardImagePaths.map((imgPath) => {
       try {
@@ -866,7 +875,7 @@ router.post("/pdf", async (req, res) => {
     });
     // ── actualskill chart image ────────────────────────────
     const actualskills_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Perceived & Actual Skills.png";
+      `${getAssetsPath()}/260622_Perceived & Actual Skills.png`;
     let actualskillsImageBase64 = "";
     try {
       if (fs.existsSync(actualskills_IMG_PATH)) {
@@ -878,7 +887,7 @@ router.post("/pdf", async (req, res) => {
 
     // ── Composite chart image ────────────────────────────
     const Composite_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Composite Scores.png";
+      `${getAssetsPath()}/260622_Composite Scores.png`;
     let CompositeImageBase64 = "";
     try {
       if (fs.existsSync(Composite_IMG_PATH)) {
@@ -890,7 +899,7 @@ router.post("/pdf", async (req, res) => {
 
     // ── Cra chart image ────────────────────────────
     const CRA_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_CRA Score Spread.png";
+      `${getAssetsPath()}/260622_CRA Score Spread.png`;
     let CRAImageBase64 = "";
     try {
       if (fs.existsSync(CRA_IMG_PATH)) {
@@ -901,7 +910,7 @@ router.post("/pdf", async (req, res) => {
     }
     // ── Compare chart image ────────────────────────────
     const Compare_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_How To Read This Section.png";
+      `${getAssetsPath()}/260622_How To Read This Section.png`;
     let CompareImageBase64 = "";
     try {
       if (fs.existsSync(Compare_IMG_PATH)) {
@@ -995,7 +1004,7 @@ router.post("/pdf/compare", async (req, res) => {
 
     // ── Load CRA-01 logo ──────────────────────────────────────
     const LOGO_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Individual Pre & Post Report.png";
+      `${getAssetsPath()}/260622_Individual Pre & Post Report.png`;
     let logoBase64 = "";
     try {
       if (fs.existsSync(LOGO_PATH)) {
@@ -1007,7 +1016,7 @@ router.post("/pdf/compare", async (req, res) => {
 
     // ── Load CRA-02 quote image ───────────────────────────────
     const QUOTE_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/CRA-02.png";
+      `${getAssetsPath()}/CRA-02.png`;
     let quoteImageBase64 = "";
     try {
       if (fs.existsSync(QUOTE_IMG_PATH)) {
@@ -1019,10 +1028,10 @@ router.post("/pdf/compare", async (req, res) => {
 
     // ── Load highlight card images ────────────────────────────
     const cardImagePaths = [
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Skills Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Will Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Environment Composite.png",
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_D-ND Composite.png",
+      `${getAssetsPath()}/260622_Skills Composite.png`,
+      `${getAssetsPath()}/260622_Will Composite.png`,
+      `${getAssetsPath()}/260622_Environment Composite.png`,
+      `${getAssetsPath()}/260622_D-ND Composite.png`,
     ];
     const cardImagesBase64: string[] = cardImagePaths.map((imgPath) => {
       try {
@@ -1037,7 +1046,7 @@ router.post("/pdf/compare", async (req, res) => {
 
     // ── Load CRA-07 composite chart image ─────────────────────
     const CHART_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/CRA-07.png";
+      `${getAssetsPath()}/CRA-07.png`;
     let chartImageBase64 = "";
     try {
       if (fs.existsSync(CHART_IMG_PATH)) {
@@ -1049,7 +1058,7 @@ router.post("/pdf/compare", async (req, res) => {
 
     // ── actualskill chart image ────────────────────────────
     const actualskills_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Perceived & Actual Skills.png";
+      `${getAssetsPath()}/260622_Perceived & Actual Skills.png`;
     let actualskillsImageBase64 = "";
     try {
       if (fs.existsSync(actualskills_IMG_PATH)) {
@@ -1061,7 +1070,7 @@ router.post("/pdf/compare", async (req, res) => {
 
     // ── Composite chart image ────────────────────────────
     const Composite_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_Composite Scores.png";
+      `${getAssetsPath()}/260622_Composite Scores.png`;
     let CompositeImageBase64 = "";
     try {
       if (fs.existsSync(Composite_IMG_PATH)) {
@@ -1073,7 +1082,7 @@ router.post("/pdf/compare", async (req, res) => {
 
     // ── Cra chart image ────────────────────────────
     const CRA_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_CRA Score Spread.png";
+      `${getAssetsPath()}/260622_CRA Score Spread.png`;
     let CRAImageBase64 = "";
     try {
       if (fs.existsSync(CRA_IMG_PATH)) {
@@ -1085,7 +1094,7 @@ router.post("/pdf/compare", async (req, res) => {
 
     // ── Compare chart image ────────────────────────────
     const Compare_IMG_PATH =
-      "/home/runner/workspace/artifacts/mobile/assets/images/260622_How To Read This Section.png";
+      `${getAssetsPath()}/260622_How To Read This Section.png`;
     let CompareImageBase64 = "";
     try {
       if (fs.existsSync(Compare_IMG_PATH)) {
